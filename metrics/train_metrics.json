@@ -1,0 +1,8 @@
+{
+  "mae": 942.7171942446043,
+  "rmse": 4261.995307092744,
+  "train_rows": 1109,
+  "test_rows": 278,
+  "data_md5": "d7bac4c8f0bcb088aabe234fbbdb4609",
+  "mlflow_run_id": "0c047554ec844c3aa0a5c87976ef4a1c"
+}

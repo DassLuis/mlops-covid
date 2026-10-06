@@ -1,27 +1,60 @@
 import os
 import sys
+import json
+import hashlib
+import subprocess
+
 import joblib
 import numpy as np
+import pandas as pd
 import mlflow
 import mlflow.sklearn
 
+from dotenv import load_dotenv
+from mlflow.models import infer_signature
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.preprocess import load_data, preprocess_country_data
-from src.features import create_features
+from src.features import FEATURES, TARGET
 from src.config import (
-    URL,
     COUNTRY,
     START_DATE,
     END_DATE,
     HORIZON,
+    TRAIN_RATIO,
+    N_ESTIMATORS,
     RANDOM_STATE,
+    PROCESSED_DATA_PATH,
     MODEL_PATH,
+    METRICS_PATH,
     MLFLOW_EXPERIMENT_NAME,
 )
+
+load_dotenv()
+
+
+def file_md5(path: str) -> str:
+    """Empreinte du fichier, identique à celle que DVC inscrit dans dvc.lock."""
+    md5 = hashlib.md5()
+
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            md5.update(chunk)
+
+    return md5.hexdigest()
+
+
+def git_commit() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return "inconnu"
 
 
 def train_model():
@@ -32,24 +65,16 @@ def train_model():
 
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
-    print("Chargement des données...")
-    df = load_data(URL)
+    print("Chargement des données préparées...")
+    df_model = pd.read_csv(PROCESSED_DATA_PATH)
+    data_md5 = file_md5(PROCESSED_DATA_PATH)
 
-    print("Prétraitement des données...")
-    df_country = preprocess_country_data(
-        df=df,
-        country=COUNTRY,
-        start_date=START_DATE,
-        end_date=END_DATE,
-    )
+    features = list(FEATURES)
 
-    print("Création des features...")
-    df_model, X, y, features = create_features(
-        df_country=df_country,
-        horizon=HORIZON,
-    )
+    X = df_model[features]
+    y = df_model[TARGET]
 
-    train_size = int(len(df_model) * 0.8)
+    train_size = int(len(df_model) * TRAIN_RATIO)
 
     X_train = X.iloc[:train_size]
     X_test = X.iloc[train_size:]
@@ -57,25 +82,37 @@ def train_model():
     y_train = y.iloc[:train_size]
     y_test = y.iloc[train_size:]
 
-    n_estimators = 100
-
     print("Entraînement du modèle...")
     model = RandomForestRegressor(
-        n_estimators=n_estimators,
+        n_estimators=N_ESTIMATORS,
         random_state=RANDOM_STATE,
         n_jobs=1,
     )
 
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
         mlflow.log_param("country", COUNTRY)
         mlflow.log_param("start_date", START_DATE)
         mlflow.log_param("end_date", END_DATE)
         mlflow.log_param("horizon", HORIZON)
         mlflow.log_param("random_state", RANDOM_STATE)
         mlflow.log_param("model_type", "RandomForestRegressor")
-        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_param("n_estimators", N_ESTIMATORS)
         mlflow.log_param("train_size", train_size)
         mlflow.log_param("features", features)
+
+        # Lien entre le run et la version des données suivie par DVC
+        mlflow.set_tag("dvc_data_md5", data_md5)
+        mlflow.set_tag("dvc_data_path", PROCESSED_DATA_PATH)
+        mlflow.set_tag("git_commit", git_commit())
+
+        dataset = mlflow.data.from_pandas(
+            df_model,
+            source=PROCESSED_DATA_PATH,
+            name="covid_features",
+            targets=TARGET,
+            digest=data_md5[:8],
+        )
+        mlflow.log_input(dataset, context="training")
 
         model.fit(X_train, y_train)
 
@@ -91,7 +128,7 @@ def train_model():
         mlflow.log_metric("mae", mae)
         mlflow.log_metric("rmse", rmse)
 
-        os.makedirs("models", exist_ok=True)
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
         model_package = {
             "model": model,
@@ -104,10 +141,29 @@ def train_model():
 
         joblib.dump(model_package, MODEL_PATH)
 
-        # mlflow.log_artifact(MODEL_PATH)
-        #mlflow.sklearn.log_model(model, name="random_forest_model")
+        mlflow.sklearn.log_model(
+            model,
+            name="model",
+            signature=infer_signature(X_train, y_pred),
+            input_example=X_train.head(1),
+        )
+
+        os.makedirs(os.path.dirname(METRICS_PATH), exist_ok=True)
+
+        metrics = {
+            "mae": float(mae),
+            "rmse": float(rmse),
+            "train_rows": int(train_size),
+            "test_rows": int(len(df_model) - train_size),
+            "data_md5": data_md5,
+            "mlflow_run_id": run.info.run_id,
+        }
+
+        with open(METRICS_PATH, "w", encoding="utf-8") as f:
+            json.dump(metrics, f, indent=2)
 
         print(f"Modèle sauvegardé dans {MODEL_PATH}")
+        print(f"Run MLflow : {run.info.run_id}")
 
 
 if __name__ == "__main__":

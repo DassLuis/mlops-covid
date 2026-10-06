@@ -1,0 +1,44 @@
+stages:
+  ingest:
+    cmd: python src/ingest.py
+    deps:
+      - src/ingest.py
+      - src/preprocess.py
+    params:
+      - src/config.py:
+          - URL
+    outs:
+      - data/raw/owid_covid.csv
+
+  prepare:
+    cmd: python src/prepare.py
+    deps:
+      - src/prepare.py
+      - src/preprocess.py
+      - src/features.py
+      - data/raw/owid_covid.csv
+    params:
+      - src/config.py:
+          - COUNTRY
+          - START_DATE
+          - END_DATE
+          - HORIZON
+    outs:
+      - data/processed/covid_features.csv
+
+  train:
+    cmd: python src/train.py
+    deps:
+      - src/train.py
+      - src/features.py
+      - data/processed/covid_features.csv
+    params:
+      - src/config.py:
+          - TRAIN_RATIO
+          - N_ESTIMATORS
+          - RANDOM_STATE
+    outs:
+      - models/covid_rf_model.joblib
+    metrics:
+      - metrics/train_metrics.json:
+          cache: false
