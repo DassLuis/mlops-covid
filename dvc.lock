@@ -7,10 +7,12 @@ stages:
       hash: md5
       md5: 76d022d5b3e6843abb50af89528f4ce7
       size: 518
+      isexec: true
     - path: src/preprocess.py
       hash: md5
       md5: 6123cf9920bc12b23e7a04892ad8f8ea
       size: 896
+      isexec: true
     params:
       src/config.py:
         URL: 
@@ -63,8 +65,8 @@ stages:
       size: 616
     - path: src/train.py
       hash: md5
-      md5: 3861cb859b4177db8f4fc5b75d8e01c3
-      size: 4540
+      md5: b775bb92760cea11b3a81a40cb5c224b
+      size: 5825
     params:
       src/config.py:
         N_ESTIMATORS: 100
@@ -73,8 +75,8 @@ stages:
     outs:
     - path: metrics/train_metrics.json
       hash: md5
-      md5: 794e270d07dd77df4a2d24897077e09f
-      size: 213
+      md5: 58c15f7f01166353884090d839550992
+      size: 238
     - path: models/covid_rf_model.joblib
       hash: md5
       md5: a731382711835402db8c77f31265b753

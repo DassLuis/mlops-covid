@@ -5,7 +5,9 @@ numpy
 scikit-learn==1.9.0
 joblib
 mlflow==3.16.0
+skops==0.16.0
 pytest
 httpx
 python-dotenv
 pydantic
+prometheus-client

@@ -1,0 +1,9 @@
+{
+  "candidate_version": "4",
+  "candidate_mae": 942.7171942446043,
+  "previous_production_version": "4",
+  "previous_production_mae": 942.7171942446043,
+  "promoted": false,
+  "reason": "le candidat est déjà en production",
+  "production_version": "4"
+}

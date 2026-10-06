@@ -11,6 +11,7 @@ import mlflow
 import mlflow.sklearn
 
 from dotenv import load_dotenv
+from mlflow import MlflowClient
 from mlflow.models import infer_signature
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -30,9 +31,13 @@ from src.config import (
     MODEL_PATH,
     METRICS_PATH,
     MLFLOW_EXPERIMENT_NAME,
+    MLFLOW_MODEL_NAME,
+    ALIAS_CANDIDATE,
 )
 
 load_dotenv()
+
+SKOPS_TRUSTED_TYPES = ["sklearn.tree._tree.Tree"]
 
 
 def file_md5(path: str) -> str:
@@ -141,12 +146,36 @@ def train_model():
 
         joblib.dump(model_package, MODEL_PATH)
 
-        mlflow.sklearn.log_model(
+        # Chaque entraînement crée une nouvelle version dans le registre
+        model_info = mlflow.sklearn.log_model(
             model,
             name="model",
             signature=infer_signature(X_train, y_pred),
             input_example=X_train.head(1),
+            registered_model_name=MLFLOW_MODEL_NAME,
+            # Format skops (sans pickle) : les arbres doivent être déclarés de
+            # confiance pour que l'API et Airflow puissent recharger le modèle.
+            skops_trusted_types=SKOPS_TRUSTED_TYPES,
         )
+
+        client = MlflowClient()
+        version = str(model_info.registered_model_version)
+
+        version_tags = {
+            "features": json.dumps(features),
+            "country": COUNTRY,
+            "horizon": HORIZON,
+            "mae": mae,
+            "rmse": rmse,
+            "dvc_data_md5": data_md5,
+            "git_commit": git_commit(),
+        }
+
+        for key, value in version_tags.items():
+            client.set_model_version_tag(MLFLOW_MODEL_NAME, version, key, value)
+
+        # La version reste candidate tant que src/promote.py ne l'a pas validée
+        client.set_registered_model_alias(MLFLOW_MODEL_NAME, ALIAS_CANDIDATE, version)
 
         os.makedirs(os.path.dirname(METRICS_PATH), exist_ok=True)
 
@@ -157,6 +186,7 @@ def train_model():
             "test_rows": int(len(df_model) - train_size),
             "data_md5": data_md5,
             "mlflow_run_id": run.info.run_id,
+            "model_version": version,
         }
 
         with open(METRICS_PATH, "w", encoding="utf-8") as f:
@@ -164,6 +194,7 @@ def train_model():
 
         print(f"Modèle sauvegardé dans {MODEL_PATH}")
         print(f"Run MLflow : {run.info.run_id}")
+        print(f"Version enregistrée : {MLFLOW_MODEL_NAME} v{version} (alias {ALIAS_CANDIDATE})")
 
 
 if __name__ == "__main__":

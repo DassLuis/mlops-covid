@@ -18,3 +18,21 @@ MODEL_PATH = "models/covid_rf_model.joblib"
 METRICS_PATH = "metrics/train_metrics.json"
 
 MLFLOW_EXPERIMENT_NAME = "covid_prediction_experiment"
+
+# Registre de modÃ¨les MLflow
+MLFLOW_MODEL_NAME = "covid_rf_model"
+ALIAS_CANDIDATE = "candidate"
+ALIAS_PRODUCTION = "production"
+
+PROMOTION_PATH = "metrics/promotion.json"
+
+# Monitoring en production
+PREDICTION_LOG_PATH = "data/monitoring/predictions.csv"
+MONITORING_SUMMARY_PATH = "data/monitoring/monitoring_summary.json"
+MONITORING_REPORTS_DIR = "data/monitoring/reports"
+MLFLOW_MONITORING_EXPERIMENT_NAME = "covid_monitoring"
+
+MONITORING_WINDOW = 500          # dernières prédictions analysées
+MONITORING_MIN_ROWS = 30         # en dessous, pas de verdict de dérive
+DRIFT_SHARE_THRESHOLD = 0.5      # part de variables en dérive qui déclenche l'alerte
+PERFORMANCE_DEGRADATION_FACTOR = 1.5   # MAE relative en production / à l'entraînement

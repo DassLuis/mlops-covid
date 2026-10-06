@@ -1,6 +1,5 @@
 [core]
     remote = stockage_local
-    autostage = true
     analytics = false
 ['remote "stockage_local"']
     url = ../dvc_storage

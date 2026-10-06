@@ -5,13 +5,20 @@ services:
       dockerfile: docker/Dockerfile.api
     container_name: covid_api
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
-      - API_KEY=mlops-covid-secret-key
+      - API_KEY=${API_KEY:-mlops-covid-secret-key}
+      # Le modèle servi est celui qui porte l'alias "production" dans le registre
+      - MODEL_SOURCE=registry
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_HTTP_REQUEST_MAX_RETRIES=2
+      - MLFLOW_HTTP_REQUEST_TIMEOUT=10
     volumes:
       - ./models:/app/models
+      - ./data/monitoring:/app/data/monitoring
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
 
   mlflow:
     build:
@@ -19,9 +26,15 @@ services:
       dockerfile: docker/Dockerfile.mlflow
     container_name: covid_mlflow
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:5000"
     volumes:
       - ./mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   airflow-webserver:
     build:
@@ -29,14 +42,16 @@ services:
       dockerfile: docker/Dockerfile.airflow
     container_name: covid_airflow_webserver
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${AIRFLOW_PORT:-8080}:8080"
     environment:
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - API_KEY=${API_KEY:-mlops-covid-secret-key}
     volumes:
       - airflow_home:/opt/airflow
       - ./airflow/dags:/opt/airflow/dags
@@ -66,11 +81,38 @@ services:
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - API_KEY=${API_KEY:-mlops-covid-secret-key}
     volumes:
       - airflow_home:/opt/airflow
       - ./airflow/dags:/opt/airflow/dags
       - .:/opt/airflow/project
     command: airflow scheduler
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: covid_prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: covid_grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
 
 volumes:
   airflow_home:

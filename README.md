@@ -8,11 +8,12 @@ L'objectif est de prédire le nombre de nouveaux cas de COVID-19 à J+7 à parti
 
 Le projet couvre l'ensemble d'une chaîne MLOps :
 
-- Prétraitement des données
-- Feature Engineering
+- Prétraitement des données et Feature Engineering
 - Entraînement d'un modèle de Machine Learning
-- API REST avec FastAPI
-- Suivi des expériences avec MLflow
+- **Versioning des données et des modèles** avec DVC et MLflow
+- **Registre de modèles** et cycle de vie (candidat, production, rejet) avec MLflow et Airflow
+- API REST avec FastAPI, qui sert le modèle en production du registre
+- **Monitoring en production** : métriques Prometheus, tableaux de bord Grafana, dérive et performance avec Evidently
 - Orchestration avec Apache Airflow
 - Conteneurisation avec Docker
 - Tests unitaires avec Pytest
@@ -24,24 +25,44 @@ Le projet couvre l'ensemble d'une chaîne MLOps :
 ```
 mlops-covid/
 │
-├── airflow/                  # DAG Airflow
-├── api/                      # API FastAPI
-├── data/                     # Données
-├── docker/                   # Dockerfiles
-├── models/                   # Modèle entraîné
-├── src/                      # Scripts Python
+├── airflow/dags/
+│   ├── retrain_covid_model.py    # DAG : entraînement, validation, promotion
+│   └── monitor_covid_model.py    # DAG : dérive et performance, réentraînement
+├── api/
+│   ├── app.py                    # API FastAPI
+│   ├── auth.py                   # clé API
+│   ├── metrics.py                # métriques Prometheus
+│   └── prediction_log.py         # journal des prédictions
+├── data/
+│   ├── raw/                      # données OWID (suivies par DVC)
+│   ├── processed/                # features (suivies par DVC)
+│   └── monitoring/               # journal des prédictions, rapports Evidently
+├── docker/                       # Dockerfiles
+├── metrics/                      # métriques d'entraînement et de promotion
+├── models/                       # modèle entraîné (suivi par DVC)
+├── monitoring/
+│   ├── prometheus/               # collecte et règles d'alerte
+│   └── grafana/                  # source de données et tableau de bord
+├── scripts/
+│   └── simulate_traffic.py       # trafic de démonstration
+├── src/
 │   ├── config.py
+│   ├── ingest.py                 # étape DVC 1 : téléchargement
 │   ├── preprocess.py
 │   ├── features.py
-│   ├── train.py
+│   ├── prepare.py                # étape DVC 2 : prétraitement et features
+│   ├── train.py                  # étape DVC 3 : entraînement et enregistrement
+│   ├── promote.py                # comparaison candidat / production
+│   ├── monitor.py                # rapports Evidently
 │   └── predict.py
+├── tests/
 │
-├── tests/                    # Tests unitaires
-│
+├── dvc.yaml                      # pipeline DVC
+├── dvc.lock                      # empreintes des données, du code et du modèle
 ├── docker-compose.yml
-├── requirements.txt
-├── requirements-airflow.txt
-├── README.md
+├── requirements.txt              # API
+├── requirements-dev.txt          # poste de développement (API + DVC)
+├── requirements-airflow.txt      # image Airflow (DVC, Evidently)
 └── .env
 ```
 
@@ -50,15 +71,14 @@ mlops-covid/
 # Technologies utilisées
 
 - Python 3.11
-- Pandas
-- NumPy
-- Scikit-Learn
-- FastAPI
-- Uvicorn
-- MLflow
+- Pandas, NumPy, Scikit-Learn
+- FastAPI, Uvicorn
+- DVC
+- MLflow (suivi des expériences et registre de modèles)
 - Apache Airflow
-- Docker
-- Docker Compose
+- Prometheus, Grafana
+- Evidently
+- Docker, Docker Compose
 - Pytest
 
 ---
@@ -69,7 +89,7 @@ Source officielle :
 
 https://github.com/owid/covid-19-data
 
-Les données sont téléchargées automatiquement depuis le dépôt OWID.
+Les données sont téléchargées depuis le dépôt OWID par l'étape `ingest` du pipeline DVC, puis versionnées.
 
 ---
 
@@ -94,56 +114,47 @@ Métriques utilisées :
 
 Cloner le projet puis se placer dans son dossier.
 
+Copier `.env.example` en `.env` et y renseigner la clé API.
+
 Lancer ensuite :
 
 ```bash
-docker compose up --build
-```
-
-ou
-
-```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
 Le premier lancement peut prendre plusieurs minutes.
+
+Si un port est déjà utilisé sur la machine, il se change sans toucher aux fichiers :
+
+```bash
+API_PORT=8010 AIRFLOW_PORT=8081 docker compose up -d
+```
+
+(variables disponibles : `API_PORT`, `MLFLOW_PORT`, `AIRFLOW_PORT`, `PROMETHEUS_PORT`, `GRAFANA_PORT`)
+
+Pour travailler hors Docker (pipeline DVC, tests) :
+
+```bash
+pip install -r requirements-dev.txt
+```
 
 ---
 
 # Accès aux services
 
-## API FastAPI
-
-Documentation Swagger :
-
-http://localhost:8000/docs
-
----
-
-## MLflow
-
-Interface de suivi des expériences :
-
-http://localhost:5000
-
----
-
-## Airflow
-
-http://localhost:8080
-
-Connexion :
-
-```
-username : admin
-password : admin
-```
+| Service | Adresse | Rôle |
+|---|---|---|
+| API FastAPI | http://localhost:8000/docs | prédictions, `/health`, `/metrics` |
+| MLflow | http://localhost:5000 | expériences, registre de modèles, historique du monitoring |
+| Airflow | http://localhost:8080 (admin / admin) | DAG d'entraînement et de monitoring |
+| Prometheus | http://localhost:9090 | métriques et alertes |
+| Grafana | http://localhost:3000 (admin / admin) | tableau de bord « MLOps COVID - API et modèle » |
 
 ---
 
 # Authentification de l'API
 
-L'endpoint `/predict` est protégé par une clé API.
+Les endpoints `/predict` et `/model/reload` sont protégés par une clé API.
 
 Ajouter l'en-tête suivant :
 
@@ -172,42 +183,164 @@ curl -X POST "http://localhost:8000/predict" \
   "rolling_mean_7":1300,
   "new_deaths":25,
   "people_vaccinated":40000000,
-  "stringency_index":45.5
+  "stringency_index":45.5,
+  "date":"2023-03-01"
 }'
 ```
 
----
+La réponse indique la prédiction et la version du modèle qui l'a produite.
 
-# Réentraîner automatiquement le modèle
+Le champ `date` est facultatif : il indique le jour auquel correspondent les données, ce qui permet au monitoring de comparer plus tard la prédiction à la valeur réellement observée.
 
-Le projet utilise Apache Airflow.
-
-Dans Airflow :
-
-- ouvrir le DAG **retrain_covid_model**
-- cliquer sur **Trigger DAG**
-
-Le pipeline effectue automatiquement :
-
-- téléchargement des données
-- prétraitement
-- feature engineering
-- entraînement du modèle
-- calcul des métriques
-- enregistrement d'un nouveau run dans MLflow
+| Endpoint | Rôle |
+|---|---|
+| `GET /health` | état de l'API, version et origine du modèle chargé |
+| `POST /predict` | prédiction à J+7 |
+| `POST /model/reload` | recharge le modèle en production du registre |
+| `GET /metrics` | métriques au format Prometheus |
 
 ---
 
-# Suivi des expériences
+# Versioning des données et des modèles
 
-Chaque entraînement est automatiquement enregistré dans MLflow.
+Le versioning repose sur trois outils qui se complètent :
 
-Les informations sauvegardées sont notamment :
+- **Git** versionne le code, la configuration et le fichier `dvc.lock`
+- **DVC** versionne les fichiers volumineux : données brutes, données préparées, modèle
+- **MLflow** versionne chaque entraînement et chaque modèle, et garde le lien avec les données
 
-- paramètres du modèle
-- métriques (MAE, RMSE)
-- date d'entraînement
-- comparaison des différents runs
+## Pipeline DVC
+
+Le pipeline est décrit dans `dvc.yaml` :
+
+```
+ingest  ──►  prepare  ──►  train
+```
+
+| Étape | Script | Sortie |
+|---|---|---|
+| `ingest` | `src/ingest.py` | `data/raw/owid_covid.csv` |
+| `prepare` | `src/prepare.py` | `data/processed/covid_features.csv` |
+| `train` | `src/train.py` | `models/covid_rf_model.joblib`, `metrics/train_metrics.json` |
+
+```bash
+dvc repro          # rejoue uniquement les étapes dont le code, les données ou les paramètres ont changé
+dvc dag            # affiche le graphe du pipeline
+dvc metrics show   # affiche les métriques du dernier entraînement
+dvc push           # envoie données et modèle vers le stockage DVC
+dvc pull           # les récupère sur une autre machine
+```
+
+`dvc.lock` contient l'empreinte (md5) de chaque fichier de données, de chaque script et des paramètres de `src/config.py`. Un commit git désigne donc une version exacte du code, des données et du modèle.
+
+Pour revenir à une version antérieure :
+
+```bash
+git checkout <commit>
+dvc checkout
+```
+
+Le stockage DVC est un dossier local (`dvc_storage/`), suffisant pour le projet. Il se remplace par un stockage distant (S3, Azure, Google Drive) avec `dvc remote add`.
+
+## Lien entre données et modèle dans MLflow
+
+Chaque run d'entraînement enregistre dans MLflow :
+
+- les paramètres et les métriques (MAE, RMSE)
+- le modèle lui-même
+- le jeu de données utilisé (onglet « Datasets » du run)
+- l'empreinte DVC des données (`dvc_data_md5`) et le commit git (`git_commit`)
+
+À partir de n'importe quel modèle, on retrouve ainsi les données et le code exacts qui l'ont produit.
+
+---
+
+# Registre de modèles et cycle de vie
+
+Chaque entraînement crée une nouvelle version du modèle `covid_rf_model` dans le **registre MLflow** (onglet « Models »). Deux alias suivent le cycle de vie :
+
+| Alias | Signification |
+|---|---|
+| `candidate` | dernière version entraînée, en attente de validation |
+| `production` | version servie par l'API |
+
+Le script `src/promote.py` évalue le candidat et le modèle en production **sur le même jeu de test**. Le candidat n'obtient l'alias `production` que si sa MAE est inférieure ou égale. Chaque version porte une étiquette `validation_status` : `promu`, `rejeté` ou `remplacé`. La décision est écrite dans `metrics/promotion.json`.
+
+Un retour arrière se fait en déplaçant l'alias `production` vers une version antérieure, depuis l'interface MLflow, puis en appelant `POST /model/reload`.
+
+## DAG `retrain_covid_model`
+
+Planifié chaque semaine, ou lancé à la main depuis Airflow (**Trigger DAG**) :
+
+```
+ingest_data ► prepare_data ► train_model ► promote_model ► version_artifacts ► reload_api
+```
+
+| Tâche | Action |
+|---|---|
+| `ingest_data` | télécharge les données (`dvc repro ingest`) |
+| `prepare_data` | prétraitement et features, rejoués seulement si les données ont changé |
+| `train_model` | entraîne et enregistre une version candidate, seulement si les données, le code ou les paramètres ont changé |
+| `promote_model` | compare le candidat au modèle en production |
+| `version_artifacts` | envoie données et modèle vers le stockage DVC (`dvc push`) |
+| `reload_api` | demande à l'API de recharger le modèle en production |
+
+Pour forcer un entraînement sans changement de données : **Trigger DAG w/ config**, paramètre `force_train` à `true`.
+
+L'API charge le modèle qui porte l'alias `production`. Si le registre est injoignable, elle se replie sur le fichier `models/covid_rf_model.joblib` ; `/health` indique toujours la version et l'origine du modèle chargé.
+
+---
+
+# Monitoring en production
+
+## Métriques de l'API (Prometheus)
+
+L'API expose ses métriques sur `/metrics`, collectées toutes les 15 secondes par Prometheus :
+
+| Métrique | Contenu |
+|---|---|
+| `covid_api_requests_total` | requêtes par endpoint et code HTTP |
+| `covid_api_request_duration_seconds` | temps de réponse |
+| `covid_predictions_total` | prédictions servies, par version du modèle |
+| `covid_prediction_value` | distribution des prédictions |
+| `covid_model_info`, `covid_model_loaded` | modèle chargé |
+| `covid_data_drift_share`, `covid_data_drift_detected` | résultat du dernier contrôle de dérive |
+| `covid_production_mae`, `covid_performance_degraded` | performance mesurée en production |
+
+Les règles d'alerte (`monitoring/prometheus/alert_rules.yml`) couvrent : API indisponible, aucun modèle chargé, taux d'erreur élevé, latence élevée, dérive des données, performance dégradée, monitoring en retard.
+
+Le tableau de bord Grafana est créé automatiquement au démarrage.
+
+## Dérive et performance (Evidently)
+
+Chaque prédiction est journalisée dans `data/monitoring/predictions.csv`. Le script `src/monitor.py` produit deux rapports Evidently :
+
+- **Dérive des données** : les entrées reçues en production sont comparées aux données d'entraînement. Une dérive est déclarée quand au moins la moitié des variables ont changé de distribution.
+- **Performance** : les prédictions datées sont rapprochées de la valeur réellement observée à J+7. La MAE est rapportée au niveau moyen des cas, pour rester comparable d'une période à l'autre ; la performance est dite dégradée au-delà de 1,5 fois la valeur de référence.
+
+Les rapports HTML sont écrits dans `data/monitoring/reports/`. Chaque contrôle est aussi enregistré dans MLflow (expérience `covid_monitoring`), avec ses métriques et ses rapports : l'historique de la dérive et de la performance s'y consulte dans le temps.
+
+## DAG `monitor_covid_model`
+
+Planifié chaque jour :
+
+```
+run_monitoring ► check_results ─┬─► trigger_retraining   (dérive ou performance dégradée)
+                                └─► no_action
+```
+
+En cas de dérive ou de baisse de performance, il déclenche le DAG `retrain_covid_model`.
+
+## Démonstration
+
+```bash
+python scripts/simulate_traffic.py --scenario normal    # jours semblables à l'entraînement
+python scripts/simulate_traffic.py --scenario recent    # année 2023, jamais vue par le modèle
+```
+
+Puis lancer le DAG `monitor_covid_model` dans Airflow. Le premier scénario ne déclenche rien ; le second fait apparaître une dérive réelle (les données de 2023 ne ressemblent plus à celles de l'entraînement), visible dans Grafana, dans l'alerte Prometheus `DeriveDesDonnees` et dans le rapport Evidently.
+
+Si l'API n'est pas sur le port 8000, ajouter `--url http://localhost:<port>`.
 
 ---
 
@@ -223,7 +356,11 @@ Les tests vérifient notamment :
 
 - endpoint `/health`
 - authentification de l'API
-- endpoint `/predict`
+- endpoint `/predict`, avec et sans date
+- endpoint `/metrics`
+- rechargement du modèle
+- construction des features (décalages, cible, lignes incomplètes)
+- règles de dérive et de performance (dans l'image Airflow, où Evidently est installé)
 
 ---
 
@@ -235,6 +372,8 @@ Le projet est découpé en plusieurs services :
 - MLflow
 - Airflow Webserver
 - Airflow Scheduler
+- Prometheus
+- Grafana
 
 Tous les services sont orchestrés via :
 
@@ -246,33 +385,30 @@ docker-compose.yml
 
 # Structure MLOps
 
-Le pipeline MLOps est le suivant :
-
 ```
-Données OWID
-        │
-        ▼
-Prétraitement
-        │
-        ▼
-Feature Engineering
-        │
-        ▼
-Random Forest
-        │
-        ▼
-Sauvegarde du modèle
-        │
-        ▼
-FastAPI
-        │
-        ▼
-Prédictions
+                 Données OWID
+                      │
+                      ▼
+   ┌──────── Pipeline DVC (Airflow) ────────┐
+   │  ingest  ►  prepare  ►  train          │──► versions des données et du modèle
+   └────────────────────┬───────────────────┘
+                        ▼
+              Registre MLflow
+        candidat ──(comparaison)──► production
+                        │
+                        ▼
+                     FastAPI ──► Prédictions
+                        │
+          ┌─────────────┴─────────────┐
+          ▼                           ▼
+   Prometheus / Grafana        Journal des prédictions
+   (trafic, latence, alertes)         │
+                                      ▼
+                           Evidently (Airflow, chaque jour)
+                           dérive et performance
+                                      │
+                                      └──► réentraînement si nécessaire
 ```
-
-L'orchestration automatique est assurée par Airflow.
-
-Les expériences sont suivies dans MLflow.
 
 ---
 

@@ -8,3 +8,9 @@ __pycache__/
 mlruns/
 mlflow_data/
 airflow/logs/
+dvc_storage/
+.dvc/cache/
+.dvc/tmp/
+data/
+presentation/
+*.pdf

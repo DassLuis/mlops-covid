@@ -1,0 +1,62 @@
+groups:
+  - name: covid_api
+    rules:
+      - alert: ApiIndisponible
+        expr: up{job="covid_api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API COVID ne répond plus"
+
+      - alert: AucunModeleCharge
+        expr: covid_model_loaded == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API tourne sans modèle chargé"
+
+      - alert: TauxErreurEleve
+        expr: >
+          sum(rate(covid_api_requests_total{status=~"5.."}[5m]))
+          / sum(rate(covid_api_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Plus de 5 % des requêtes sont en erreur serveur"
+
+      - alert: LatenceElevee
+        expr: >
+          histogram_quantile(0.95,
+          sum(rate(covid_api_request_duration_seconds_bucket{endpoint="/predict"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "95 % des prédictions prennent plus d'une seconde"
+
+  - name: covid_model
+    rules:
+      - alert: DeriveDesDonnees
+        expr: covid_data_drift_detected == 1
+        labels:
+          severity: warning
+        annotations:
+          summary: "Evidently détecte une dérive des données d'entrée"
+          description: "{{ $value }} : part des variables en dérive au-dessus du seuil"
+
+      - alert: PerformanceDegradee
+        expr: covid_performance_degraded == 1
+        labels:
+          severity: warning
+        annotations:
+          summary: "La MAE relative en production dépasse 1,5 fois celle de l'entraînement"
+
+      - alert: MonitoringEnRetard
+        expr: time() - covid_monitoring_last_run_timestamp > 2 * 86400 and covid_monitoring_last_run_timestamp > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Aucun contrôle de monitoring depuis plus de deux jours"
