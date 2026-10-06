@@ -1,0 +1,12 @@
+streamlit
+plotly
+streamlit-lottie
+pandas
+numpy
+scikit-learn
+joblib
+pyarrow
+requests
+matplotlib
+scipy
+pillow

@@ -1,0 +1,17 @@
+# Thème de l'application studio (presentation/app.py).
+# Pour l'ancienne version claire :
+#   streamlit run presentation/app_clair.py --theme.base light
+[theme]
+base = "dark"
+primaryColor = "#38bdf8"
+backgroundColor = "#020617"
+secondaryBackgroundColor = "#0f172a"
+textColor = "#f1f5f9"
+font = "sans serif"
+
+[server]
+headless = true
+runOnSave = true
+
+[browser]
+gatherUsageStats = false
