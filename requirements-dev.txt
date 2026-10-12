@@ -1,2 +1,2 @@
 -r requirements.txt
-dvc==3.67.1
+dvc[s3]==3.67.1

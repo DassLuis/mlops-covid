@@ -1,0 +1,35 @@
+route:
+  receiver: equipe_mlops
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: equipe_mlops
+      repeat_interval: 1h
+
+# Une API indisponible explique à elle seule l'absence de modèle chargé :
+# inutile de notifier deux fois.
+inhibit_rules:
+  - source_matchers:
+      - alertname="ApiIndisponible"
+    target_matchers:
+      - alertname="AucunModeleCharge"
+
+receivers:
+  # Sans canal renseigné, les alertes sont regroupées et consultables dans
+  # l'interface d'Alertmanager. Pour les recevoir par mail ou sur Slack,
+  # décommenter l'un des blocs et y mettre ses identifiants.
+  - name: equipe_mlops
+    # email_configs:
+    #   - to: equipe@example.com
+    #     from: alertes@example.com
+    #     smarthost: smtp.example.com:587
+    #     auth_username: alertes@example.com
+    #     auth_password: mot-de-passe-d-application
+    # slack_configs:
+    #   - api_url: https://hooks.slack.com/services/XXX/YYY/ZZZ
+    #     channel: "#alertes-mlops"
+    #     send_resolved: true

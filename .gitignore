@@ -14,3 +14,7 @@ presentation/data/owid_raw.parquet
 dvc_storage/
 airflow/logs/
 data/monitoring/
+
+# Réglages propres au poste (autorité de certification locale)
+.certs/
+docker-compose.override.yml

@@ -36,6 +36,33 @@ services:
       retries: 12
       start_period: 20s
 
+  # Stockage objet compatible S3 : c'est le stockage distant de DVC
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: covid_minio
+    # L'image tourne sans privilèges : root est nécessaire pour écrire dans le volume
+    user: "0:0"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address :9001
+
+  # Crée le bucket « dvc » au premier démarrage, puis s'arrête
+  minio-init:
+    image: cgr.dev/chainguard/minio-client:latest
+    container_name: covid_minio_init
+    depends_on:
+      - minio
+    environment:
+      - MC_HOST_stockage=http://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin}@minio:9000
+    command: mb --ignore-existing stockage/dvc
+    restart: on-failure
+
   airflow-webserver:
     build:
       context: .
@@ -52,6 +79,9 @@ services:
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - API_KEY=${API_KEY:-mlops-covid-secret-key}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - airflow_home:/opt/airflow
       - ./airflow/dags:/opt/airflow/dags
@@ -75,13 +105,20 @@ services:
       dockerfile: docker/Dockerfile.airflow
     container_name: covid_airflow_scheduler
     depends_on:
-      - airflow-webserver
-      - mlflow
+      airflow-webserver:
+        condition: service_started
+      mlflow:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     environment:
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - API_KEY=${API_KEY:-mlops-covid-secret-key}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - airflow_home:/opt/airflow
       - ./airflow/dags:/opt/airflow/dags
@@ -97,6 +134,16 @@ services:
       - ./monitoring/prometheus:/etc/prometheus:ro
     depends_on:
       - api
+      - alertmanager
+
+  # Reçoit les alertes de Prometheus, les regroupe et les achemine
+  alertmanager:
+    image: quay.io/prometheus/alertmanager:v0.27.0
+    container_name: covid_alertmanager
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
 
   grafana:
     image: grafana/grafana:10.4.2
@@ -116,3 +163,4 @@ services:
 
 volumes:
   airflow_home:
+  minio_data:

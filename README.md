@@ -42,6 +42,7 @@ mlops-covid/
 ├── models/                       # modèle entraîné (suivi par DVC)
 ├── monitoring/
 │   ├── prometheus/               # collecte et règles d'alerte
+│   ├── alertmanager/             # regroupement et acheminement des alertes
 │   └── grafana/                  # source de données et tableau de bord
 ├── scripts/
 │   └── simulate_traffic.py       # trafic de démonstration
@@ -73,10 +74,10 @@ mlops-covid/
 - Python 3.11
 - Pandas, NumPy, Scikit-Learn
 - FastAPI, Uvicorn
-- DVC
+- DVC, MinIO (stockage objet compatible S3)
 - MLflow (suivi des expériences et registre de modèles)
 - Apache Airflow
-- Prometheus, Grafana
+- Prometheus, Alertmanager, Grafana
 - Evidently
 - Docker, Docker Compose
 - Pytest
@@ -130,7 +131,7 @@ Si un port est déjà utilisé sur la machine, il se change sans toucher aux fic
 API_PORT=8010 AIRFLOW_PORT=8081 docker compose up -d
 ```
 
-(variables disponibles : `API_PORT`, `MLFLOW_PORT`, `AIRFLOW_PORT`, `PROMETHEUS_PORT`, `GRAFANA_PORT`)
+(variables disponibles : `API_PORT`, `MLFLOW_PORT`, `AIRFLOW_PORT`, `PROMETHEUS_PORT`, `ALERTMANAGER_PORT`, `GRAFANA_PORT`, `MINIO_PORT`, `MINIO_CONSOLE_PORT`)
 
 Pour travailler hors Docker (pipeline DVC, tests) :
 
@@ -148,7 +149,9 @@ pip install -r requirements-dev.txt
 | MLflow | http://localhost:5000 | expériences, registre de modèles, historique du monitoring |
 | Airflow | http://localhost:8080 (admin / admin) | DAG d'entraînement et de monitoring |
 | Prometheus | http://localhost:9090 | métriques et alertes |
+| Alertmanager | http://localhost:9093 | alertes regroupées et acheminées |
 | Grafana | http://localhost:3000 (admin / admin) | tableau de bord « MLOps COVID - API et modèle » |
+| MinIO | http://localhost:9001 (identifiants du `.env`) | stockage distant de DVC, bucket `dvc` |
 
 ---
 
@@ -240,7 +243,19 @@ git checkout <commit>
 dvc checkout
 ```
 
-Le stockage DVC est un dossier local (`dvc_storage/`), suffisant pour le projet. Il se remplace par un stockage distant (S3, Azure, Google Drive) avec `dvc remote add`.
+## Stockage distant
+
+Le stockage DVC est un bucket S3, `s3://dvc`, servi par le conteneur **MinIO**. DVC lui parle comme à Amazon S3 : passer à un S3 hébergé revient à changer l'adresse et les identifiants, sans toucher au pipeline.
+
+L'adresse et les identifiants ne sont pas écrits dans le dépôt, ils passent par l'environnement. Dans Airflow, `docker-compose.yml` les fournit. Sur le poste de développement, avant un `dvc push` ou un `dvc pull` :
+
+```bash
+export AWS_ENDPOINT_URL=http://localhost:9000
+export AWS_ACCESS_KEY_ID=minioadmin          # MINIO_ROOT_USER du .env
+export AWS_SECRET_ACCESS_KEY=minioadmin      # MINIO_ROOT_PASSWORD du .env
+```
+
+Le bucket est créé au premier démarrage par le service `minio-init`.
 
 ## Lien entre données et modèle dans MLflow
 
@@ -282,7 +297,7 @@ ingest_data ► prepare_data ► train_model ► promote_model ► version_artif
 | `prepare_data` | prétraitement et features, rejoués seulement si les données ont changé |
 | `train_model` | entraîne et enregistre une version candidate, seulement si les données, le code ou les paramètres ont changé |
 | `promote_model` | compare le candidat au modèle en production |
-| `version_artifacts` | envoie données et modèle vers le stockage DVC (`dvc push`) |
+| `version_artifacts` | envoie données et modèle vers le stockage MinIO (`dvc push`) |
 | `reload_api` | demande à l'API de recharger le modèle en production |
 
 Pour forcer un entraînement sans changement de données : **Trigger DAG w/ config**, paramètre `force_train` à `true`.
@@ -308,6 +323,8 @@ L'API expose ses métriques sur `/metrics`, collectées toutes les 15 secondes p
 | `covid_production_mae`, `covid_performance_degraded` | performance mesurée en production |
 
 Les règles d'alerte (`monitoring/prometheus/alert_rules.yml`) couvrent : API indisponible, aucun modèle chargé, taux d'erreur élevé, latence élevée, dérive des données, performance dégradée, monitoring en retard.
+
+Prometheus transmet les alertes déclenchées à **Alertmanager**, qui les regroupe par nom, évite les doublons (une API indisponible masque l'alerte « aucun modèle chargé ») et les achemine vers le destinataire `equipe_mlops`. Sans canal renseigné, elles se consultent dans son interface. Pour les recevoir par mail ou sur Slack, décommenter le bloc correspondant dans `monitoring/alertmanager/alertmanager.yml` et y mettre ses identifiants.
 
 Le tableau de bord Grafana est créé automatiquement au démarrage.
 
@@ -372,7 +389,9 @@ Le projet est découpé en plusieurs services :
 - MLflow
 - Airflow Webserver
 - Airflow Scheduler
+- MinIO
 - Prometheus
+- Alertmanager
 - Grafana
 
 Tous les services sont orchestrés via :
@@ -390,7 +409,7 @@ docker-compose.yml
                       │
                       ▼
    ┌──────── Pipeline DVC (Airflow) ────────┐
-   │  ingest  ►  prepare  ►  train          │──► versions des données et du modèle
+   │  ingest  ►  prepare  ►  train          │──► versions des données et du modèle (MinIO)
    └────────────────────┬───────────────────┘
                         ▼
               Registre MLflow
@@ -402,7 +421,11 @@ docker-compose.yml
           ┌─────────────┴─────────────┐
           ▼                           ▼
    Prometheus / Grafana        Journal des prédictions
-   (trafic, latence, alertes)         │
+   (trafic, latence)                  │
+          │                           │
+          ▼                           │
+     Alertmanager                     │
+     (alertes)                        │
                                       ▼
                            Evidently (Airflow, chaque jour)
                            dérive et performance
@@ -465,7 +488,7 @@ Les trois premiers modes fonctionnent hors ligne, sans Docker.
 | `presentation/build_assets.py` | dessine la bannière et le fond de page |
 
 Une **version claire** de la présentation, calée sur la charte du PDF et
-découpée en 17 diapositives, reste disponible :
+découpée en 19 diapositives, reste disponible :
 
 ```bash
 streamlit run presentation/app_clair.py --theme.base light
@@ -500,7 +523,7 @@ fond_ecran(opacite=0.45)   # 0 = fond éteint, 1 = image en pleine force
 ## Support imprimable
 
 - `presentation/presentation-mlops-covid.html` — à ouvrir dans un navigateur
-- `presentation/presentation-mlops-covid.pdf` — 17 pages au format 16:9
+- `presentation/presentation-mlops-covid.pdf` — 19 pages au format 16:9
 
 ## Guides de lecture
 

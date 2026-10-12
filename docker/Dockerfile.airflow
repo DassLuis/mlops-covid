@@ -17,4 +17,8 @@ USER airflow
 
 COPY requirements-airflow.txt /requirements-airflow.txt
 
-RUN pip install --no-cache-dir -r /requirements-airflow.txt
+# Sur un poste dont l'antivirus ou le proxy inspecte le HTTPS, son autorité de
+# certification peut être fournie au build (secret « pip_ca ») ; sinon rien ne change.
+RUN --mount=type=secret,id=pip_ca,mode=0444 \
+    if [ -s /run/secrets/pip_ca ]; then export PIP_CERT=/run/secrets/pip_ca; fi \
+    && pip install --no-cache-dir -r /requirements-airflow.txt

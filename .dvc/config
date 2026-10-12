@@ -1,5 +1,5 @@
 [core]
-    remote = stockage_local
+    remote = minio
     analytics = false
-['remote "stockage_local"']
-    url = ../dvc_storage
+['remote "minio"']
+    url = s3://dvc
