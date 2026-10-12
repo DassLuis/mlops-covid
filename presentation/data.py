@@ -72,6 +72,28 @@ def load_complet() -> pd.DataFrame:
     return df
 
 
+@st.cache_data(show_spinner=False)
+def load_etat_mlops() -> dict:
+    """Derniers résultats écrits par le projet : entraînement, promotion, monitoring.
+
+    Un fichier absent donne None : la page affiche alors la règle sans le chiffre.
+    """
+    fichiers = {
+        "entrainement": ("metrics", "train_metrics.json"),
+        "promotion": ("metrics", "promotion.json"),
+        "monitoring": ("data", "monitoring", "monitoring_summary.json"),
+    }
+    etat = {}
+    for cle, morceaux in fichiers.items():
+        chemin = os.path.join(ROOT, *morceaux)
+        if os.path.exists(chemin):
+            with open(chemin, encoding="utf-8") as fh:
+                etat[cle] = json.load(fh)
+        else:
+            etat[cle] = None
+    return etat
+
+
 @st.cache_resource(show_spinner=False)
 def load_model():
     """Charge le modèle réellement livré par le projet (models/*.joblib)."""

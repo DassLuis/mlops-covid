@@ -4,7 +4,7 @@ Lancement :
     streamlit run presentation/app.py
 
 Les données affichées sont figées par presentation/build_data.py, qui rejoue le
-pipeline du projet. Le laboratoire de la diapositive 14 appelle, lui, le modèle
+pipeline du projet. Le laboratoire de la diapositive 16 appelle, lui, le modèle
 et l'API réellement livrés.
 """
 
@@ -91,7 +91,7 @@ with st.sidebar:
     if os.path.exists(pdf):
         with open(pdf, "rb") as fh:
             st.download_button(
-                "Télécharger le PDF (17 pages)", fh.read(),
+                "Télécharger le PDF (19 pages)", fh.read(),
                 file_name="presentation-mlops-covid.pdf", mime="application/pdf",
                 use_container_width=True,
             )

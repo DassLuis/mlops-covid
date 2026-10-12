@@ -1,19 +1,78 @@
-"""Schéma d'architecture MLOps, décliné pour le thème sombre.
+"""Schéma d'architecture MLOps, décliné pour le thème sombre et le thème clair.
 
 Chaque flèche porte son étiquette : ce qui circule, et à quelle cadence.
 """
 
-ARCHI_SVG = """
-<svg viewBox="0 0 1000 400" role="img" style="width:100%;height:auto;margin:.6rem 0"
- aria-label="Architecture : l'interface Airflow déclenche le planificateur, qui relance
- chaque semaine l'entraînement ; celui-ci télécharge les données OWID, journalise ses
- paramètres et métriques dans MLflow et écrit le modèle sur un volume partagé que l'API
- FastAPI charge au démarrage pour répondre aux clients.">
+SOMBRE = {
+    "police": "Outfit,sans-serif",
+    "rayon": 12,
+    "enceinte_fond": "rgba(255,255,255,0.02)", "enceinte_bord": "rgba(255,255,255,0.12)",
+    "discret": "#64748b", "etiquette": "#94a3b8",
+    # (fond, bord, titre, sous-titre)
+    "bleu": ("rgba(56,189,248,0.08)", "rgba(56,189,248,0.22)", "#38bdf8", "#7dd3fc"),
+    "violet": ("rgba(139,92,246,0.10)", "rgba(139,92,246,0.28)", "#a78bfa", "#8b5cf6"),
+    "chaud": ("rgba(251,191,36,0.10)", "rgba(251,191,36,0.28)", "#fbbf24", "#fcd34d"),
+    "neutre": ("rgba(255,255,255,0.04)", "rgba(255,255,255,0.10)", "#f1f5f9", "#64748b"),
+    "plein": ("#38bdf8", "#38bdf8", "#020617", "#0c4a6e"),
+    "trait": "#38bdf8", "trait_violet": "#8b5cf6", "trait_chaud": "#fbbf24",
+    "halo": True,
+}
+
+CLAIR = {
+    "police": "IBM Plex Sans,sans-serif",
+    "rayon": 0,
+    "enceinte_fond": "none", "enceinte_bord": "#b9c2cd",
+    "discret": "#7d8896", "etiquette": "#495563",
+    "bleu": ("#eaf2fd", "none", "#1c5cab", "#1c5cab"),
+    "violet": ("#efeafc", "none", "#5b3fb0", "#5b3fb0"),
+    "chaud": ("#fceee8", "none", "#d2501f", "#d2501f"),
+    "neutre": ("#f4f6f9", "none", "#101720", "#7d8896"),
+    "plein": ("#2a78d6", "none", "#ffffff", "#cde2fb"),
+    "trait": "#2a78d6", "trait_violet": "#5b3fb0", "trait_chaud": "#d2501f",
+    "halo": False,
+}
+
+
+def schema(p: dict) -> str:
+    police = f'font-family="{p["police"]}"'
+
+    def boite(x, y, titre, sous, ton, w=170, h=50):
+        fond, bord, c_titre, c_sous = p[ton]
+        cx = x + w / 2
+        halo = ' filter="url(#glow)"' if ton == "plein" and p["halo"] else ""
+        return (
+            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{p["rayon"]}" '
+            f'fill="{fond}" stroke="{bord}"{halo}/>'
+            f'<text x="{cx}" y="{y + 22}" {police} font-size="13" font-weight="700" '
+            f'fill="{c_titre}" text-anchor="middle">{titre}</text>'
+            f'<text x="{cx}" y="{y + 38}" {police} font-size="10.5" fill="{c_sous}" '
+            f'text-anchor="middle">{sous}</text>'
+        )
+
+    def fleche(points, trait="trait", tirets=False):
+        tete = "fa2" if trait == "trait_chaud" else "fc"
+        pointille = ' stroke-dasharray="4 3"' if tirets else ""
+        return (f'<polyline points="{points}" fill="none" stroke="{p[trait]}" '
+                f'stroke-width="1.6"{pointille} marker-end="url(#{tete})"/>')
+
+    def etiquette(x, y, texte, ancre="start"):
+        return (f'<text x="{x}" y="{y}" {police} font-size="11" '
+                f'fill="{p["etiquette"]}" text-anchor="{ancre}">{texte}</text>')
+
+    return f"""
+<svg viewBox="0 0 1000 470" role="img" style="width:100%;height:auto;margin:.6rem 0"
+ aria-label="Architecture : Airflow rejoue le pipeline DVC, qui télécharge les données
+ OWID, envoie données et modèle dans MinIO et enregistre une nouvelle version dans le
+ registre MLflow. L'API FastAPI sert la version en production. Chaque prédiction est
+ journalisée ; Evidently y cherche chaque jour une dérive et peut relancer
+ l'entraînement. Prometheus collecte les métriques de l'API et transmet ses alertes à
+ Alertmanager ; Grafana les affiche.">
 <defs>
   <marker id="fc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-   orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/></marker>
+   orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="{p["trait"]}"/></marker>
   <marker id="fa2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
-   orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#fbbf24"/></marker>
+   orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"
+   fill="{p["trait_chaud"]}"/></marker>
   <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
     <feGaussianBlur stdDeviation="6" result="b"/>
     <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
@@ -21,111 +80,67 @@ ARCHI_SVG = """
 </defs>
 
 <!-- enceinte docker compose -->
-<rect x="196" y="8" width="768" height="296" rx="18" fill="rgba(255,255,255,0.02)"
- stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="6 5"/>
-<text x="212" y="30" font-family="Outfit,sans-serif" font-size="11"
- fill="#64748b" letter-spacing="1.6">DOCKER COMPOSE · 4 SERVICES</text>
+<rect x="196" y="8" width="796" height="372" rx="{p["rayon"] and 18}"
+ fill="{p["enceinte_fond"]}" stroke="{p["enceinte_bord"]}" stroke-width="1"
+ stroke-dasharray="6 5"/>
+<text x="212" y="30" {police} font-size="11"
+ fill="{p["discret"]}" letter-spacing="1.6">DOCKER COMPOSE · 8 SERVICES</text>
 
-<!-- source externe -->
-<rect x="0" y="164" width="160" height="54" rx="12" fill="rgba(255,255,255,0.04)"
- stroke="rgba(255,255,255,0.10)"/>
-<text x="80" y="189" font-family="Outfit,sans-serif" font-size="13" font-weight="700"
- fill="#f1f5f9" text-anchor="middle">OWID · GitHub</text>
-<text x="80" y="206" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#64748b" text-anchor="middle">owid-covid-data.csv</text>
+<!-- source externe et client -->
+{boite(0, 150, "OWID · GitHub", "owid-covid-data.csv", "neutre", w=160)}
+{boite(830, 410, "Client · Swagger · curl", "x-api-key", "neutre", w=160, h=48)}
 
-<!-- colonne airflow + entrainement -->
-<rect x="240" y="34" width="150" height="48" rx="12" fill="rgba(56,189,248,0.08)"
- stroke="rgba(56,189,248,0.22)"/>
-<text x="315" y="55" font-family="Outfit,sans-serif" font-size="12.5" font-weight="700"
- fill="#38bdf8" text-anchor="middle">airflow-webserver</text>
-<text x="315" y="71" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#7dd3fc" text-anchor="middle">:8080</text>
+<!-- colonne orchestration et versioning -->
+{boite(226, 48, "Airflow", "2 DAG · @weekly · @daily", "bleu")}
+{boite(226, 150, "Pipeline DVC", "ingest ▸ prepare ▸ train", "plein")}
+{boite(226, 262, "MinIO · S3", "données et modèle versionnés", "chaud")}
 
-<rect x="240" y="106" width="150" height="48" rx="12" fill="rgba(56,189,248,0.08)"
- stroke="rgba(56,189,248,0.22)"/>
-<text x="315" y="127" font-family="Outfit,sans-serif" font-size="12.5" font-weight="700"
- fill="#38bdf8" text-anchor="middle">airflow-scheduler</text>
-<text x="315" y="143" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#7dd3fc" text-anchor="middle">retrain_covid_model</text>
+<!-- colonne registre et contrôle -->
+{boite(466, 48, "Evidently", "dérive · performance", "bleu")}
+{boite(466, 150, "MLflow · registre", "candidate ▸ production", "violet")}
+{boite(466, 262, "Alertmanager · Grafana", ":9093 · :3000", "bleu")}
 
-<rect x="240" y="178" width="150" height="54" rx="12" fill="#38bdf8" filter="url(#glow)"/>
-<text x="315" y="202" font-family="Outfit,sans-serif" font-size="13" font-weight="800"
- fill="#020617" text-anchor="middle">Entraînement</text>
-<text x="315" y="219" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#0c4a6e" text-anchor="middle">src/train.py</text>
+<!-- colonne service -->
+{boite(706, 48, "Journal des prédictions", "predictions.csv", "chaud")}
+{boite(706, 150, "API FastAPI", ":8000 · /predict · /metrics", "bleu")}
+{boite(706, 262, "Prometheus", ":9090 · 7 règles d'alerte", "bleu")}
 
-<!-- mlflow -->
-<rect x="470" y="66" width="184" height="54" rx="12" fill="rgba(139,92,246,0.10)"
- stroke="rgba(139,92,246,0.28)"/>
-<text x="562" y="90" font-family="Outfit,sans-serif" font-size="13" font-weight="700"
- fill="#a78bfa" text-anchor="middle">MLflow</text>
-<text x="562" y="107" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#8b5cf6" text-anchor="middle">:5000 · base SQLite</text>
+<!-- ═══ entraînement et versioning ═══ -->
+{fleche("160,175 222,175")}
+{etiquette(80, 222, "téléchargement du CSV", "middle")}
+{fleche("311,100 311,146")}
+{etiquette(322, 128, "dvc repro")}
+{fleche("311,202 311,258", "trait_chaud")}
+{etiquette(322, 235, "dvc push")}
+{fleche("398,175 462,175", "trait_violet")}
+{etiquette(430, 167, "version", "middle")}
+{fleche("638,175 702,175", "trait_chaud")}
+{etiquette(670, 167, "production", "middle")}
 
-<!-- volume modele -->
-<rect x="470" y="178" width="184" height="54" rx="12" fill="rgba(251,191,36,0.10)"
- stroke="rgba(251,191,36,0.28)"/>
-<text x="562" y="202" font-family="Outfit,sans-serif" font-size="13" font-weight="700"
- fill="#fbbf24" text-anchor="middle">Volume partagé</text>
-<text x="562" y="219" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#fcd34d" text-anchor="middle">models/*.joblib</text>
+<!-- ═══ boucle de monitoring ═══ -->
+{fleche("791,146 791,102")}
+{etiquette(802, 128, "chaque prédiction")}
+{fleche("702,73 640,73")}
+{etiquette(671, 65, "@daily", "middle")}
+{fleche("462,73 400,73", tirets=True)}
+{etiquette(431, 65, "réentraîner", "middle")}
+{fleche("551,100 551,146", "trait_violet")}
+{etiquette(562, 128, "historique")}
 
-<!-- api -->
-<rect x="744" y="178" width="184" height="54" rx="12" fill="rgba(56,189,248,0.08)"
- stroke="rgba(56,189,248,0.22)"/>
-<text x="836" y="202" font-family="Outfit,sans-serif" font-size="13" font-weight="700"
- fill="#38bdf8" text-anchor="middle">API FastAPI</text>
-<text x="836" y="219" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#7dd3fc" text-anchor="middle">:8000</text>
+<!-- ═══ métriques et alertes ═══ -->
+{fleche("791,202 791,258")}
+{etiquette(802, 235, "collecte · 15 s")}
+{fleche("702,287 640,287")}
+{etiquette(671, 279, "alertes", "middle")}
 
-<!-- client -->
-<rect x="744" y="336" width="184" height="48" rx="12" fill="rgba(255,255,255,0.04)"
- stroke="rgba(255,255,255,0.10)"/>
-<text x="836" y="365" font-family="Outfit,sans-serif" font-size="12.5" font-weight="700"
- fill="#f1f5f9" text-anchor="middle">Client · Swagger · curl</text>
-
-<!-- ═══ flux ═══ -->
-<line x1="160" y1="205" x2="236" y2="205" stroke="#38bdf8" stroke-width="1.6"
- marker-end="url(#fc)"/>
-<text x="80" y="242" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8" text-anchor="middle">téléchargement du CSV</text>
-
-<line x1="315" y1="84" x2="315" y2="102" stroke="#38bdf8" stroke-width="1.6"
- marker-end="url(#fc)"/>
-<text x="328" y="99" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8">Trigger DAG manuel</text>
-
-<line x1="315" y1="156" x2="315" y2="174" stroke="#38bdf8" stroke-width="1.6"
- marker-end="url(#fc)"/>
-<text x="328" y="171" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8">@weekly</text>
-
-<polyline points="392,190 448,190 448,93 466,93" fill="none" stroke="#8b5cf6"
- stroke-width="1.6" marker-end="url(#fc)"/>
-<text x="562" y="54" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8" text-anchor="middle">9 paramètres · MAE · RMSE</text>
-
-<line x1="392" y1="218" x2="466" y2="218" stroke="#fbbf24" stroke-width="1.6"
- marker-end="url(#fa2)"/>
-<text x="429" y="250" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8" text-anchor="middle">joblib.dump</text>
-
-<line x1="656" y1="205" x2="740" y2="205" stroke="#fbbf24" stroke-width="1.6"
- marker-end="url(#fa2)"/>
-<text x="698" y="250" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8" text-anchor="middle">chargé au démarrage</text>
-
-<line x1="860" y1="332" x2="860" y2="236" stroke="#38bdf8" stroke-width="1.6"
- marker-end="url(#fc)"/>
-<text x="872" y="274" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8">POST /predict</text>
-<text x="872" y="290" font-family="Outfit,sans-serif" font-size="10.5"
- fill="#64748b">x-api-key</text>
-
-<line x1="812" y1="236" x2="812" y2="332" stroke="#38bdf8" stroke-width="1.6"
- stroke-dasharray="4 3" marker-end="url(#fc)"/>
-<text x="800" y="286" font-family="Outfit,sans-serif" font-size="11"
- fill="#94a3b8" text-anchor="end">prévision J+7</text>
+<!-- ═══ client ═══ -->
+{fleche("900,406 900,165 880,165")}
+{fleche("878,188 930,188 930,406", tirets=True)}
+{etiquette(892, 340, "POST /predict", "end")}
+{etiquette(938, 340, "J+7")}
 </svg>
 """
+
+
+ARCHI_SVG = schema(SOMBRE)
+ARCHI_SVG_CLAIR = schema(CLAIR)

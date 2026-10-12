@@ -263,19 +263,20 @@ a{ color:var(--accent-dim); }
   <div class="content">
     <h1 class="deck-h1">Prédire les cas de COVID-19<br>à sept jours</h1>
     <p class="lead">Une chaîne MLOps complète, des données publiques mondiales
-      jusqu’à une API d’inférence conteneurisée, réentraînée automatiquement.</p>
+      jusqu’à une API d’inférence conteneurisée : modèle versionné, promu par comparaison,
+      surveillé en production et réentraîné automatiquement.</p>
 
     <div class="cover-meta">
       <div><span class="k">Réalisé par</span>Luvengani Dass<br>Saadia Szapiro</div>
       <div><span class="k">Données</span>Our World in Data<br>France · 2020 → 2023</div>
       <div><span class="k">Modèle</span>Random Forest<br>11 variables · horizon J+7</div>
-      <div><span class="k">Livrable</span>4 services Docker<br>API · MLflow · Airflow</div>
+      <div><span class="k">Livrable</span>8 services Docker<br>API · DVC · MLflow · Airflow · Prometheus</div>
     </div>
   </div>
 
   <div class="foot">
     <span>Prédire le COVID à J+7</span>
-    <span class="num">01 / 17</span>
+    <span class="num">01 / 19</span>
   </div>
 </section>
 
@@ -319,7 +320,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Le problème</span><span class="num">02 / 17</span></div>
+  <div class="foot"><span>Le problème</span><span class="num">02 / 19</span></div>
 </section>
 
 <!-- ══════════════ 03 · LES DONNÉES ══════════════ -->
@@ -354,7 +355,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Les données</span><span class="num">03 / 17</span></div>
+  <div class="foot"><span>Les données</span><span class="num">03 / 19</span></div>
 </section>
 
 <!-- ══════════════ 04 · CE QUE LES DONNÉES CACHENT ══════════════ -->
@@ -385,7 +386,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Les données · diagnostic</span><span class="num">04 / 17</span></div>
+  <div class="foot"><span>Les données · diagnostic</span><span class="num">04 / 19</span></div>
 </section>
 
 <!-- ══════════════ 05 · FEATURE ENGINEERING ══════════════ -->
@@ -482,7 +483,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Préparation des données</span><span class="num">05 / 17</span></div>
+  <div class="foot"><span>Préparation des données</span><span class="num">05 / 19</span></div>
 </section>
 
 <!-- ══════════════ 06 · LE MODÈLE ══════════════ -->
@@ -530,7 +531,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Le modèle</span><span class="num">06 / 17</span></div>
+  <div class="foot"><span>Le modèle</span><span class="num">06 / 19</span></div>
 </section>
 
 <!-- ══════════════ 07 · RÉSULTATS — MÉTRIQUES ══════════════ -->
@@ -569,7 +570,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Résultats · métriques</span><span class="num">07 / 17</span></div>
+  <div class="foot"><span>Résultats · métriques</span><span class="num">07 / 19</span></div>
 </section>
 
 <!-- ══════════════ 08 · PRÉDIT VS RÉEL ══════════════ -->
@@ -600,7 +601,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Résultats · prédit vs réel</span><span class="num">08 / 17</span></div>
+  <div class="foot"><span>Résultats · prédit vs réel</span><span class="num">08 / 19</span></div>
 </section>
 
 <!-- ══════════════ 09 · LES 13 JOURS ══════════════ -->
@@ -632,7 +633,7 @@ a{ color:var(--accent-dim); }
       dix-sept.</p>
   </div>
 
-  <div class="foot"><span>Résultats · analyse de l’erreur</span><span class="num">09 / 17</span></div>
+  <div class="foot"><span>Résultats · analyse de l’erreur</span><span class="num">09 / 19</span></div>
 </section>
 
 <!-- ══════════════ 10 · IMPORTANCES ══════════════ -->
@@ -667,7 +668,7 @@ a{ color:var(--accent-dim); }
     </div>
   </div>
 
-  <div class="foot"><span>Interprétation</span><span class="num">10 / 17</span></div>
+  <div class="foot"><span>Interprétation</span><span class="num">10 / 19</span></div>
 </section>
 
 <!-- ══════════════ 11 · ARCHITECTURE ══════════════ -->
@@ -678,139 +679,97 @@ a{ color:var(--accent-dim); }
   </div>
 
   <div class="content top" style="gap:1.2cqi">
-    <h2 class="title" style="margin-top:0; font-size:2.6cqi">Quatre services, un volume
-      partagé, une boucle fermée</h2>
+    <h2 class="title" style="margin-top:0; font-size:2.6cqi">Huit services, trois boucles :
+      entraîner, servir, surveiller</h2>
 
     <figure class="grow">
-      <svg class="fig-svg" viewBox="0 0 1000 392" role="img"
-           aria-label="Architecture : l’interface Airflow déclenche le planificateur, qui relance chaque semaine l’entraînement ; celui-ci télécharge les données OWID, journalise ses paramètres et métriques dans MLflow et écrit le modèle sur un volume partagé que l’API FastAPI charge au démarrage pour répondre aux clients.">
-        <defs>
-          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5"
-                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0 0 L10 5 L0 10 z" fill="#2a78d6"/>
-          </marker>
-          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5"
-                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0 0 L10 5 L0 10 z" fill="#d2501f"/>
-          </marker>
-        </defs>
+      <svg viewBox="0 0 1000 470" role="img" class="fig-svg"
+ aria-label="Architecture : Airflow rejoue le pipeline DVC, qui télécharge les données
+ OWID, envoie données et modèle dans MinIO et enregistre une nouvelle version dans le
+ registre MLflow. L'API FastAPI sert la version en production. Chaque prédiction est
+ journalisée ; Evidently y cherche chaque jour une dérive et peut relancer
+ l'entraînement. Prometheus collecte les métriques de l'API et transmet ses alertes à
+ Alertmanager ; Grafana les affiche.">
+<defs>
+  <marker id="fc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+   orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2a78d6"/></marker>
+  <marker id="fa2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+   orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"
+   fill="#d2501f"/></marker>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur stdDeviation="6" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
 
-        <!-- enceinte docker compose -->
-        <rect x="196" y="8" width="768" height="292" fill="none"
-              stroke="#b9c2cd" stroke-width="1" stroke-dasharray="5 4"/>
-        <text x="204" y="24" font-family="IBM Plex Mono, monospace" font-size="10.5"
-              fill="#7d8896" letter-spacing="1.1">DOCKER COMPOSE · 4 SERVICES</text>
+<!-- enceinte docker compose -->
+<rect x="196" y="8" width="796" height="372" rx="0"
+ fill="none" stroke="#b9c2cd" stroke-width="1"
+ stroke-dasharray="6 5"/>
+<text x="212" y="30" font-family="IBM Plex Sans,sans-serif" font-size="11"
+ fill="#7d8896" letter-spacing="1.6">DOCKER COMPOSE · 8 SERVICES</text>
 
-        <!-- source externe -->
-        <rect x="0" y="164" width="160" height="52" fill="#f4f6f9"/>
-        <text x="80" y="188" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#101720" text-anchor="middle">OWID · GitHub</text>
-        <text x="80" y="204" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#7d8896" text-anchor="middle">owid-covid-data.csv</text>
+<!-- source externe et client -->
+<rect x="0" y="150" width="160" height="50" rx="0" fill="#f4f6f9" stroke="none"/><text x="80.0" y="172" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#101720" text-anchor="middle">OWID · GitHub</text><text x="80.0" y="188" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#7d8896" text-anchor="middle">owid-covid-data.csv</text>
+<rect x="830" y="410" width="160" height="48" rx="0" fill="#f4f6f9" stroke="none"/><text x="910.0" y="432" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#101720" text-anchor="middle">Client · Swagger · curl</text><text x="910.0" y="448" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#7d8896" text-anchor="middle">x-api-key</text>
 
-        <!-- colonne airflow + entrainement -->
-        <rect x="240" y="34" width="140" height="46" fill="#eaf2fd"/>
-        <text x="310" y="55" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#1c5cab" text-anchor="middle">airflow-webserver</text>
-        <text x="310" y="70" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#1c5cab" text-anchor="middle">:8080</text>
+<!-- colonne orchestration et versioning -->
+<rect x="226" y="48" width="170" height="50" rx="0" fill="#eaf2fd" stroke="none"/><text x="311.0" y="70" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#1c5cab" text-anchor="middle">Airflow</text><text x="311.0" y="86" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#1c5cab" text-anchor="middle">2 DAG · @weekly · @daily</text>
+<rect x="226" y="150" width="170" height="50" rx="0" fill="#2a78d6" stroke="none"/><text x="311.0" y="172" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">Pipeline DVC</text><text x="311.0" y="188" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#cde2fb" text-anchor="middle">ingest ▸ prepare ▸ train</text>
+<rect x="226" y="262" width="170" height="50" rx="0" fill="#fceee8" stroke="none"/><text x="311.0" y="284" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#d2501f" text-anchor="middle">MinIO · S3</text><text x="311.0" y="300" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#d2501f" text-anchor="middle">données et modèle versionnés</text>
 
-        <rect x="240" y="106" width="140" height="46" fill="#eaf2fd"/>
-        <text x="310" y="127" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#1c5cab" text-anchor="middle">airflow-scheduler</text>
-        <text x="310" y="142" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#1c5cab" text-anchor="middle">retrain_covid_model</text>
+<!-- colonne registre et contrôle -->
+<rect x="466" y="48" width="170" height="50" rx="0" fill="#eaf2fd" stroke="none"/><text x="551.0" y="70" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#1c5cab" text-anchor="middle">Evidently</text><text x="551.0" y="86" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#1c5cab" text-anchor="middle">dérive · performance</text>
+<rect x="466" y="150" width="170" height="50" rx="0" fill="#efeafc" stroke="none"/><text x="551.0" y="172" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#5b3fb0" text-anchor="middle">MLflow · registre</text><text x="551.0" y="188" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#5b3fb0" text-anchor="middle">candidate ▸ production</text>
+<rect x="466" y="262" width="170" height="50" rx="0" fill="#eaf2fd" stroke="none"/><text x="551.0" y="284" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#1c5cab" text-anchor="middle">Alertmanager · Grafana</text><text x="551.0" y="300" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#1c5cab" text-anchor="middle">:9093 · :3000</text>
 
-        <rect x="240" y="178" width="140" height="52" fill="#2a78d6"/>
-        <text x="310" y="202" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#ffffff" text-anchor="middle">Entraînement</text>
-        <text x="310" y="218" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#cde2fb" text-anchor="middle">src/train.py</text>
+<!-- colonne service -->
+<rect x="706" y="48" width="170" height="50" rx="0" fill="#fceee8" stroke="none"/><text x="791.0" y="70" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#d2501f" text-anchor="middle">Journal des prédictions</text><text x="791.0" y="86" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#d2501f" text-anchor="middle">predictions.csv</text>
+<rect x="706" y="150" width="170" height="50" rx="0" fill="#eaf2fd" stroke="none"/><text x="791.0" y="172" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#1c5cab" text-anchor="middle">API FastAPI</text><text x="791.0" y="188" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#1c5cab" text-anchor="middle">:8000 · /predict · /metrics</text>
+<rect x="706" y="262" width="170" height="50" rx="0" fill="#eaf2fd" stroke="none"/><text x="791.0" y="284" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="#1c5cab" text-anchor="middle">Prometheus</text><text x="791.0" y="300" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="#1c5cab" text-anchor="middle">:9090 · 7 règles d'alerte</text>
 
-        <!-- mlflow -->
-        <rect x="470" y="68" width="180" height="52" fill="#eaf2fd"/>
-        <text x="560" y="92" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#1c5cab" text-anchor="middle">MLflow</text>
-        <text x="560" y="108" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#1c5cab" text-anchor="middle">:5000 · base SQLite</text>
+<!-- ═══ entraînement et versioning ═══ -->
+<polyline points="160,175 222,175" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="80" y="222" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="middle">téléchargement du CSV</text>
+<polyline points="311,100 311,146" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="322" y="128" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="start">dvc repro</text>
+<polyline points="311,202 311,258" fill="none" stroke="#d2501f" stroke-width="1.6" marker-end="url(#fa2)"/>
+<text x="322" y="235" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="start">dvc push</text>
+<polyline points="398,175 462,175" fill="none" stroke="#5b3fb0" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="430" y="167" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="middle">version</text>
+<polyline points="638,175 702,175" fill="none" stroke="#d2501f" stroke-width="1.6" marker-end="url(#fa2)"/>
+<text x="670" y="167" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="middle">production</text>
 
-        <!-- volume modele -->
-        <rect x="470" y="178" width="180" height="52" fill="#fceee8"/>
-        <text x="560" y="202" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#d2501f" text-anchor="middle">Volume partagé</text>
-        <text x="560" y="218" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#d2501f" text-anchor="middle">models/*.joblib</text>
+<!-- ═══ boucle de monitoring ═══ -->
+<polyline points="791,146 791,102" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="802" y="128" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="start">chaque prédiction</text>
+<polyline points="702,73 640,73" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="671" y="65" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="middle">@daily</text>
+<polyline points="462,73 400,73" fill="none" stroke="#2a78d6" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#fc)"/>
+<text x="431" y="65" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="middle">réentraîner</text>
+<polyline points="551,100 551,146" fill="none" stroke="#5b3fb0" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="562" y="128" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="start">historique</text>
 
-        <!-- api -->
-        <rect x="740" y="178" width="180" height="52" fill="#eaf2fd"/>
-        <text x="830" y="202" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#1c5cab" text-anchor="middle">API FastAPI</text>
-        <text x="830" y="218" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#1c5cab" text-anchor="middle">:8000</text>
+<!-- ═══ métriques et alertes ═══ -->
+<polyline points="791,202 791,258" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="802" y="235" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="start">collecte · 15 s</text>
+<polyline points="702,287 640,287" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<text x="671" y="279" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="middle">alertes</text>
 
-        <!-- client -->
-        <rect x="740" y="332" width="180" height="46" fill="#f4f6f9"/>
-        <text x="830" y="360" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
-              font-weight="600" fill="#101720" text-anchor="middle">Client · Swagger · curl</text>
-
-        <!-- ═══ flux ═══ -->
-
-        <!-- owid -> entrainement -->
-        <line x1="160" y1="204" x2="236" y2="204" stroke="#2a78d6" stroke-width="1.6"
-              marker-end="url(#a1)"/>
-        <text x="80" y="240" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
-              fill="#495563" text-anchor="middle">téléchargement du CSV</text>
-
-        <!-- webserver -> scheduler -->
-        <line x1="310" y1="82" x2="310" y2="102" stroke="#2a78d6" stroke-width="1.6"
-              marker-end="url(#a1)"/>
-        <text x="322" y="97" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
-              fill="#495563">Trigger DAG manuel</text>
-
-        <!-- scheduler -> entrainement -->
-        <line x1="310" y1="154" x2="310" y2="174" stroke="#2a78d6" stroke-width="1.6"
-              marker-end="url(#a1)"/>
-        <text x="322" y="169" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#495563">@weekly</text>
-
-        <!-- entrainement -> mlflow -->
-        <polyline points="382,190 424,190 424,94 466,94" fill="none" stroke="#2a78d6"
-                  stroke-width="1.6" marker-end="url(#a1)"/>
-        <text x="560" y="58" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
-              fill="#495563" text-anchor="middle">9 paramètres · MAE · RMSE</text>
-
-        <!-- entrainement -> volume -->
-        <line x1="382" y1="216" x2="466" y2="216" stroke="#d2501f" stroke-width="1.6"
-              marker-end="url(#a2)"/>
-        <text x="424" y="248" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#495563" text-anchor="middle">joblib.dump</text>
-
-        <!-- volume -> api -->
-        <line x1="652" y1="204" x2="736" y2="204" stroke="#d2501f" stroke-width="1.6"
-              marker-end="url(#a2)"/>
-        <text x="694" y="248" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
-              fill="#495563" text-anchor="middle">chargé au démarrage</text>
-
-        <!-- client -> api -->
-        <line x1="854" y1="328" x2="854" y2="234" stroke="#2a78d6" stroke-width="1.6"
-              marker-end="url(#a1)"/>
-        <text x="866" y="272" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
-              fill="#495563">POST /predict</text>
-        <text x="866" y="288" font-family="IBM Plex Mono, monospace" font-size="10"
-              fill="#495563">x-api-key</text>
-
-        <!-- api -> client -->
-        <line x1="806" y1="234" x2="806" y2="328" stroke="#2a78d6" stroke-width="1.6"
-              stroke-dasharray="4 3" marker-end="url(#a1)"/>
-        <text x="794" y="284" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
-              fill="#495563" text-anchor="end">prévision J+7</text>
-      </svg>
-      <figcaption>La boucle est fermée : chaque réentraînement écrit un nouveau modèle sur le
-        volume et un nouveau run dans MLflow, sans toucher au code de l’API.</figcaption>
+<!-- ═══ client ═══ -->
+<polyline points="900,406 900,165 880,165" fill="none" stroke="#2a78d6" stroke-width="1.6" marker-end="url(#fc)"/>
+<polyline points="878,188 930,188 930,406" fill="none" stroke="#2a78d6" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#fc)"/>
+<text x="892" y="340" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="end">POST /predict</text>
+<text x="938" y="340" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="#495563" text-anchor="start">J+7</text>
+</svg>
+      <figcaption>Trois exigences, trois réponses : le versioning des données et des modèles
+        (DVC, MinIO, MLflow), le registre et son cycle de vie (MLflow, Airflow), le monitoring
+        en production (Prometheus, Alertmanager, Grafana, Evidently). Les diapositives 13 à 15
+        les détaillent.</figcaption>
     </figure>
   </div>
 
-  <div class="foot"><span>Architecture MLOps</span><span class="num">11 / 17</span></div>
+  <div class="foot"><span>Architecture MLOps</span><span class="num">11 / 19</span></div>
 </section>
 
 <!-- ══════════════ 12 · L'API ══════════════ -->
@@ -821,16 +780,17 @@ a{ color:var(--accent-dim); }
   </div>
 
   <div class="content">
-    <h2 class="title" style="margin-top:0; font-size:2.7cqi">Trois points d’entrée,
+    <h2 class="title" style="margin-top:0; font-size:2.7cqi">Cinq points d’entrée,
       une clé, une réponse</h2>
 
     <div class="cols c-1-1" style="gap:3.2cqi">
       <div style="display:flex; flex-direction:column; gap:1.6cqi">
         <table class="t">
           <tr><th style="width:44%">Endpoint</th><th>Rôle</th></tr>
-          <tr><td class="k">GET /</td><td>message d’état</td></tr>
-          <tr><td class="k">GET /health</td><td>modèle chargé, pays, horizon, MAE, RMSE</td></tr>
+          <tr><td class="k">GET /health</td><td>modèle chargé, version, origine</td></tr>
           <tr><td class="k">POST /predict</td><td>prévision — protégé par clé</td></tr>
+          <tr><td class="k">POST /model/reload</td><td>recharge la version en production — protégé</td></tr>
+          <tr><td class="k">GET /metrics</td><td>métriques pour Prometheus</td></tr>
           <tr><td class="k">GET /docs</td><td>documentation Swagger générée</td></tr>
         </table>
         <ul class="list">
@@ -838,8 +798,9 @@ a{ color:var(--accent-dim); }
             rejeté avant d’atteindre le modèle.</li>
           <li><strong>Clé API</strong> en en-tête <span class="mono">x-api-key</span> ;
             absente ou incorrecte, la requête reçoit un <span class="mono">401</span>.</li>
-          <li><strong>Chargement unique</strong> du modèle au démarrage du service, pas à
-            chaque appel.</li>
+          <li><strong>Modèle lu dans le registre</strong> : la version qui porte l’alias
+            <span class="mono">production</span> ; si MLflow est injoignable, repli sur le
+            fichier local.</li>
         </ul>
       </div>
 
@@ -854,76 +815,160 @@ x-api-key: mlops-covid-secret-key
   <span class="s">"rolling_mean_7"</span>: 1300,
   <span class="s">"new_deaths"</span>: 25,
   <span class="s">"people_vaccinated"</span>: 40000000,
-  <span class="s">"stringency_index"</span>: 45.5
+  <span class="s">"stringency_index"</span>: 45.5,
+  <span class="s">"date"</span>: <span class="s">"2023-03-01"</span>
 }</pre>
         </div>
         <div>
           <p class="card-lab" style="color:var(--ink-3)">Réponse</p>
           <pre class="code" style="border-left-color:var(--warm)">200 OK
 
-{ <span class="s">"prediction_new_cases_h_plus_7"</span>: 5300.66 }</pre>
+{ <span class="s">"prediction_new_cases_h_plus_7"</span>: 5300.66,
+  <span class="s">"model_version"</span>: <span class="s">"4"</span> }</pre>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="foot"><span>Mise en service · API</span><span class="num">12 / 17</span></div>
+  <div class="foot"><span>Mise en service · API</span><span class="num">12 / 19</span></div>
 </section>
 
-<!-- ══════════════ 13 · MLFLOW & AIRFLOW ══════════════ -->
+<!-- ══════════════ 13 · VERSIONING ══════════════ -->
 <section class="slide">
   <div class="rail">
-    <span class="eyebrow on">Industrialisation</span>
-    <span class="eyebrow">Traçabilité &amp; orchestration</span>
+    <span class="eyebrow on">Versioning</span>
+    <span class="eyebrow">DVC · MinIO · MLflow</span>
   </div>
 
   <div class="content">
-    <h2 class="title" style="margin-top:0; font-size:2.7cqi">Chaque entraînement laisse
-      une trace, et se relance sans intervention</h2>
+    <h2 class="title" style="margin-top:0; font-size:2.7cqi">À partir d’un modèle, retrouver ses données et son code</h2>
 
     <div class="cols c-1-1" style="gap:3.2cqi">
       <div style="display:flex; flex-direction:column; gap:1.5cqi">
         <div class="card">
-          <p class="card-lab">MLflow — la mémoire des expériences</p>
+          <p class="card-lab">DVC — les données et le modèle</p>
           <ul class="list" style="gap:.9cqi">
-            <li>Expérience <span class="mono">covid_prediction_experiment</span>,
-              stockée en SQLite, consultable sur <span class="mono">:5000</span>.</li>
-            <li><strong>9 paramètres</strong> journalisés par run : pays, fenêtre de dates,
-              horizon, graine, type de modèle, nombre d’arbres, taille du train, liste des
-              variables.</li>
-            <li><strong>2 métriques</strong> : MAE et RMSE — de quoi comparer deux versions
-              sans relire le code.</li>
+            <li>Un pipeline en trois étapes : <span class="mono">ingest</span>, <span class="mono">prepare</span>, <span class="mono">train</span>.</li>
+            <li><span class="mono">dvc.lock</span> garde l’<strong>empreinte</strong> de chaque fichier, de chaque script et des paramètres : un commit git désigne une version exacte du code, des données et du modèle.</li>
+            <li><span class="mono">dvc repro</span> ne rejoue que les étapes dont une entrée a changé ; <span class="mono">dvc push</span> envoie les fichiers dans <strong>MinIO</strong>, un stockage compatible S3.</li>
           </ul>
         </div>
-        <p class="small"><strong class="ink">3 runs enregistrés</strong> à ce jour, aux
-          métriques identiques : la graine fixée rend l’entraînement parfaitement
-          reproductible.</p>
+        <p class="small">Retour arrière : <span class="mono">git checkout</span> puis <span class="mono">dvc checkout</span>.</p>
       </div>
 
       <div style="display:flex; flex-direction:column; gap:1.5cqi">
         <div class="card warm">
-          <p class="card-lab">Airflow — la boucle de réentraînement</p>
+          <p class="card-lab">MLflow — le lien entre modèle et données</p>
           <ul class="list warm" style="gap:.9cqi">
-            <li>DAG <span class="mono">retrain_covid_model</span>, planifié
-              <span class="mono">@weekly</span> — la même cadence que la publication des
-              données.</li>
-            <li>Une tâche <span class="mono">BashOperator</span> relance la chaîne complète :
-              téléchargement, prétraitement, variables, entraînement, journalisation.</li>
-            <li><span class="mono">retries=1</span> avec cinq minutes d’attente ;
-              <span class="mono">catchup=False</span> pour ne pas rattraper l’historique
-              au premier démarrage.</li>
+            <li>Chaque entraînement enregistre ses <strong>9 paramètres</strong> et ses <strong>2 métriques</strong>, MAE et RMSE.</li>
+            <li>Il enregistre aussi le jeu de données utilisé, son empreinte DVC et le commit git.</li>
           </ul>
         </div>
-        <p class="small">Le déclenchement manuel reste possible depuis l’interface — utile
-          pour une démonstration ou après un correctif.</p>
+        <table class="t">
+          <tr><th style="width:52%">Dernier entraînement</th><th></th></tr>
+          <tr><td class="k">Version du modèle</td><td>covid_rf_model v4</td></tr>
+          <tr><td class="k">Empreinte des données</td><td>d7bac4c8f0bc…</td></tr>
+          <tr><td class="k">Run MLflow</td><td>b0eb5ae8db13…</td></tr>
+        </table>
       </div>
     </div>
   </div>
 
-  <div class="foot"><span>Industrialisation</span><span class="num">13 / 17</span></div>
+  <div class="foot"><span>Versioning</span><span class="num">13 / 19</span></div>
 </section>
 
-<!-- ══════════════ 14 · DÉMONSTRATION ══════════════ -->
+<!-- ══════════════ 14 · REGISTRE ══════════════ -->
+<section class="slide">
+  <div class="rail">
+    <span class="eyebrow on">Registre de modèles</span>
+    <span class="eyebrow">MLflow · Airflow</span>
+  </div>
+
+  <div class="content">
+    <h2 class="title" style="margin-top:0; font-size:2.7cqi">Un modèle n’entre en production que s’il fait au moins aussi bien</h2>
+
+    <div class="cols c-1-1" style="gap:3.2cqi">
+      <div style="display:flex; flex-direction:column; gap:1.5cqi">
+        <div class="card">
+          <p class="card-lab">MLflow — un cycle de vie porté par deux alias</p>
+          <ul class="list" style="gap:.9cqi">
+            <li><span class="mono">candidate</span> : la dernière version entraînée, à valider.</li>
+            <li><span class="mono">production</span> : la version servie par l’API.</li>
+            <li>Le candidat et la production sont évalués <strong>sur le même jeu de test</strong> ; le candidat ne passe que si sa MAE est inférieure ou égale. Chaque version porte son verdict : promu, rejeté, remplacé.</li>
+          </ul>
+        </div>
+        <p class="small">Les alias remplacent les étapes Staging / Production, que MLflow a dépréciées. Retour arrière : déplacer l’alias <span class="mono">production</span>, puis appeler <span class="mono">POST /model/reload</span>.</p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:1.5cqi">
+        <div class="card warm">
+          <p class="card-lab">Airflow — le DAG retrain_covid_model</p>
+          <ul class="list warm" style="gap:.9cqi">
+            <li>Six tâches : <span class="mono">ingest_data</span>, <span class="mono">prepare_data</span>, <span class="mono">train_model</span>, <span class="mono">promote_model</span>, <span class="mono">version_artifacts</span>, <span class="mono">reload_api</span>.</li>
+            <li>Planifié <span class="mono">@weekly</span>, à la cadence de publication des données ; déclenchable à la main.</li>
+            <li><span class="mono">reload_api</span> fait charger la nouvelle production à l’API, sans redémarrage.</li>
+          </ul>
+        </div>
+        <table class="t">
+          <tr><th style="width:52%">Dernière promotion</th><th></th></tr>
+          <tr><td class="k">Version en production</td><td>v4</td></tr>
+          <tr><td class="k">MAE du dernier candidat</td><td>942,72 cas</td></tr>
+          <tr><td class="k">Décision</td><td>le candidat est déjà en production</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Registre de modèles</span><span class="num">14 / 19</span></div>
+</section>
+
+<!-- ══════════════ 15 · MONITORING ══════════════ -->
+<section class="slide">
+  <div class="rail">
+    <span class="eyebrow on">Monitoring</span>
+    <span class="eyebrow">Prometheus · Evidently · Airflow</span>
+  </div>
+
+  <div class="content">
+    <h2 class="title" style="margin-top:0; font-size:2.7cqi">Surveiller le service, surveiller le modèle, réagir seul</h2>
+
+    <div class="cols c-1-1" style="gap:3.2cqi">
+      <div style="display:flex; flex-direction:column; gap:1.5cqi">
+        <div class="card">
+          <p class="card-lab">Prometheus — le service</p>
+          <ul class="list" style="gap:.9cqi">
+            <li>L’API expose <span class="mono">/metrics</span>, collecté toutes les <strong>15 secondes</strong> : requêtes, temps de réponse, prédictions par version du modèle.</li>
+            <li><strong>7 règles d’alerte</strong> : API indisponible, aucun modèle chargé, taux d’erreur, latence, dérive, performance dégradée, monitoring en retard.</li>
+            <li><strong>Alertmanager</strong> regroupe les alertes et les achemine ; <strong>Grafana</strong> les affiche.</li>
+          </ul>
+        </div>
+        <p class="small">Le canal de notification (mail, Slack) reste à brancher.</p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:1.5cqi">
+        <div class="card warm">
+          <p class="card-lab">Evidently — le modèle</p>
+          <ul class="list warm" style="gap:.9cqi">
+            <li>Chaque prédiction est journalisée avec ses entrées.</li>
+            <li><strong>Dérive</strong> : alerte si au moins la moitié des variables ont changé de distribution par rapport à l’entraînement.</li>
+            <li><strong>Performance</strong> : les prévisions datées sont rapprochées de la valeur observée à J+7 ; alerte au-delà de 1,5 fois l’erreur relative de référence.</li>
+            <li>Le DAG <span class="mono">monitor_covid_model</span> tourne <span class="mono">@daily</span> et <strong>relance l’entraînement</strong> si nécessaire.</li>
+          </ul>
+        </div>
+        <table class="t">
+          <tr><th style="width:52%">Dernier contrôle · 2026-10-12</th><th></th></tr>
+          <tr><td class="k">Prédictions analysées</td><td>478</td></tr>
+          <tr><td class="k">Variables en dérive</td><td>9 sur 11</td></tr>
+          <tr><td class="k">Réentraînement recommandé</td><td>oui</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Monitoring</span><span class="num">15 / 19</span></div>
+</section>
+
+<!-- ══════════════ 16 · DÉMONSTRATION ══════════════ -->
 <section class="slide">
   <div class="rail">
     <span class="eyebrow on">Démonstration</span>
@@ -937,14 +982,14 @@ x-api-key: mlops-covid-secret-key
     <div class="cols c-1-1" style="gap:3.2cqi; align-items:start">
       <ol class="steps">
         <li><strong><span class="mono">docker compose up -d</span></strong><br>
-          Les quatre conteneurs démarrent ensemble. <span class="mono">docker ps</span>
-          les affiche : API, MLflow, webserver et scheduler Airflow.</li>
+          Les huit conteneurs démarrent ensemble : API, MLflow, MinIO, Airflow, Prometheus,
+          Alertmanager et Grafana.</li>
         <li><strong>Swagger sur <span class="mono">:8000/docs</span></strong><br>
           L’API se documente seule : les onze champs attendus, leurs types et un exemple
           pré-rempli.</li>
         <li><strong><span class="mono">GET /health</span></strong><br>
-          Le modèle répond avec sa propre carte d’identité : pays, horizon, MAE et RMSE
-          embarqués dans le fichier <span class="mono">.joblib</span>.</li>
+          Le modèle répond avec sa propre carte d’identité : version, origine (le registre),
+          pays, horizon, MAE et RMSE.</li>
         <li><strong><span class="mono">POST /predict</span> sans clé → 401</strong><br>
           La protection se vérifie en une requête : sans en-tête
           <span class="mono">x-api-key</span>, rien ne passe.</li>
@@ -955,29 +1000,29 @@ x-api-key: mlops-covid-secret-key
           Sur la charge utile d’exemple, le modèle renvoie
           <strong>5 300,66 cas</strong> à J+7.</li>
         <li><strong>MLflow sur <span class="mono">:5000</span></strong><br>
-          Les runs côte à côte, avec leurs neuf paramètres et leurs deux métriques :
-          on compare deux versions sans relire une ligne de code.</li>
+          Les runs côte à côte, et dans l’onglet Models les versions avec leurs alias
+          <span class="mono">candidate</span> et <span class="mono">production</span>.</li>
         <li><strong>Airflow sur <span class="mono">:8080</span> → Trigger DAG</strong><br>
-          <span class="mono">retrain_covid_model</span> se déclenche à la main ; la tâche
-          passe au vert en quelques minutes.</li>
-        <li><strong>Retour sur MLflow</strong><br>
-          Un run de plus est apparu, et le volume partagé contient un nouveau modèle.
-          La boucle s’est refermée sans toucher au code de l’API.</li>
+          <span class="mono">retrain_covid_model</span> se déclenche à la main ; ses six tâches passent au
+          vert, de l’entraînement à la promotion.</li>
+        <li><strong>Grafana sur <span class="mono">:3000</span></strong><br>
+          Après un trafic de démonstration et le DAG <span class="mono">monitor_covid_model</span>, la dérive
+          apparaît sur le tableau de bord et l’alerte dans Alertmanager.</li>
       </ol>
     </div>
 
     <div class="card plain">
       <p class="card-lab">Plan de repli</p>
       <p class="small" style="font-size:1.24cqi">Si un service tarde à démarrer, le récit
-        se déroule à l’identique sur les captures de secours et sur le rapport
-        <span class="mono">report.html</span>, qui montre les trois tests au vert.</p>
+        se déroule à l’identique dans l’application Streamlit, dont le simulateur appelle
+        directement le modèle <span class="mono">models/covid_rf_model.joblib</span>, sans Docker.</p>
     </div>
   </div>
 
-  <div class="foot"><span>Démonstration</span><span class="num">14 / 17</span></div>
+  <div class="foot"><span>Démonstration</span><span class="num">16 / 19</span></div>
 </section>
 
-<!-- ══════════════ 15 · TESTS & CONTENEURISATION ══════════════ -->
+<!-- ══════════════ 17 · TESTS & CONTENEURISATION ══════════════ -->
 <section class="slide">
   <div class="rail">
     <span class="eyebrow on">Qualité</span>
@@ -992,7 +1037,7 @@ x-api-key: mlops-covid-secret-key
       <div style="display:flex; flex-direction:column; gap:1.6cqi">
         <div class="stats" style="grid-template-columns:1fr 1fr">
           <div class="stat" style="background:var(--good-bg)">
-            <div class="stat-val" style="color:var(--good)">3 / 3</div>
+            <div class="stat-val" style="color:var(--good)">8 / 8</div>
             <div class="stat-lab">Tests pytest réussis</div></div>
           <div class="stat"><div class="stat-val">0</div>
             <div class="stat-lab">Échec</div></div>
@@ -1001,36 +1046,39 @@ x-api-key: mlops-covid-secret-key
           <tr><th style="width:58%">Test</th><th>Attendu</th></tr>
           <tr><td class="k">/health</td><td>200 · modèle chargé</td></tr>
           <tr><td class="k">/predict sans clé</td><td>401</td></tr>
-          <tr><td class="k">/predict avec clé</td><td>200 · prévision</td></tr>
+          <tr><td class="k">/predict avec clé, avec ou sans date</td><td>200 · prévision</td></tr>
+          <tr><td class="k">/metrics · /model/reload</td><td>200</td></tr>
+          <tr><td class="k">Construction des variables</td><td>décalages, cible, lignes incomplètes</td></tr>
         </table>
-        <p class="small">Les tests s’exécutent contre l’application réelle via le
-          <span class="mono">TestClient</span> de FastAPI, modèle chargé compris.</p>
+        <p class="small">Les tests de l’API s’exécutent contre l’application réelle via le
+          <span class="mono">TestClient</span> de FastAPI. Deux tests de plus, sur les règles de dérive et de
+          performance, s’exécutent dans l’image Airflow, où Evidently est installé.</p>
       </div>
 
       <div style="display:flex; flex-direction:column; gap:1.6cqi">
         <div class="card plain">
           <p class="card-lab">Conteneurisation</p>
-          <p class="body ink" style="font-size:1.35cqi">Trois images (API, MLflow, Airflow)
-            et quatre services orchestrés par un seul
-            <span class="mono">docker compose up</span>. Trois volumes assurent la
-            persistance : modèle entraîné, base MLflow, métadonnées Airflow.</p>
+          <p class="body ink" style="font-size:1.35cqi">Trois images construites (API, MLflow,
+            Airflow), cinq images publiques et huit services orchestrés par un seul
+            <span class="mono">docker compose up</span>. Les volumes assurent la persistance : modèle, base
+            MLflow, métadonnées Airflow, stockage MinIO.</p>
         </div>
         <div class="card warm">
           <p class="card-lab">Angles morts assumés</p>
           <ul class="list warm" style="gap:.8cqi">
-            <li>Aucun test unitaire sur le prétraitement, les variables et l’entraînement —
-              seule l’API est couverte.</li>
-            <li>Pas de test d’intégration bout en bout sur la chaîne de réentraînement.</li>
+            <li>Aucun test sur le téléchargement ni sur l’entraînement lui-même.</li>
+            <li>Pas de test d’intégration bout en bout sur la chaîne de réentraînement, ni
+              d’intégration continue.</li>
           </ul>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="foot"><span>Qualité</span><span class="num">15 / 17</span></div>
+  <div class="foot"><span>Qualité</span><span class="num">17 / 19</span></div>
 </section>
 
-<!-- ══════════════ 16 · LIMITES ══════════════ -->
+<!-- ══════════════ 18 · LIMITES ══════════════ -->
 <section class="slide">
   <div class="rail">
     <span class="eyebrow on">Regard critique</span>
@@ -1051,13 +1099,13 @@ x-api-key: mlops-covid-secret-key
           publications testées, l’erreur relative moyenne atteint 82 %.</li>
       </ol>
       <ol class="steps" style="counter-reset:s 3">
-        <li><strong>Le modèle n’est pas versionné.</strong> L’appel au registre MLflow est
-          commenté dans le code : impossible de promouvoir ou de revenir en arrière
-          proprement.</li>
+        <li><strong>Tout tourne sur une seule machine.</strong> MinIO, MLflow et Airflow
+          partagent le même poste : ni sauvegarde distante, ni reprise si la machine
+          tombe.</li>
         <li><strong>Le secret est en clair.</strong> La clé API figure dans
           <span class="mono">docker-compose.yml</span> et dans le dépôt.</li>
-        <li><strong>Aucune surveillance en production.</strong> Ni détection de dérive des
-          données, ni alerte si la qualité des prévisions se dégrade.</li>
+        <li><strong>Les alertes n’ont pas de destinataire.</strong> Elles sont déclenchées,
+          regroupées et routées, mais aucun canal (mail, Slack) n’est branché.</li>
       </ol>
     </div>
 
@@ -1066,10 +1114,10 @@ x-api-key: mlops-covid-secret-key
       diapositives 04, 09 et 10.</p>
   </div>
 
-  <div class="foot"><span>Regard critique</span><span class="num">16 / 17</span></div>
+  <div class="foot"><span>Regard critique</span><span class="num">18 / 19</span></div>
 </section>
 
-<!-- ══════════════ 17 · PERSPECTIVES ══════════════ -->
+<!-- ══════════════ 19 · PERSPECTIVES ══════════════ -->
 <section class="slide">
   <div class="rail">
     <span class="eyebrow on">Conclusion</span>
@@ -1098,15 +1146,14 @@ x-api-key: mlops-covid-secret-key
       <div style="display:flex; flex-direction:column; gap:1.5cqi">
         <p class="card-lab" style="color:var(--warm)">Sur l’industrialisation</p>
         <ul class="list warm">
-          <li><strong>Activer le registre de modèles MLflow</strong> avec des étapes
-            Staging / Production et un retour arrière en une commande.</li>
-          <li><strong>Superviser avec Prometheus et Grafana</strong> : latence et taux
-            d’erreur de l’API, MAE glissante recalculée à chaque publication, et une
-            alerte dès qu’elle dépasse son seuil.</li>
-          <li><strong>Sortir les secrets du dépôt</strong> et surveiller la dérive des
-            données entrantes.</li>
-          <li><strong>Étendre les tests</strong> au prétraitement et à la construction des
-            variables, puis les brancher sur une intégration continue.</li>
+          <li><strong>Brancher un canal de notification</strong> sur Alertmanager, mail ou
+            Slack.</li>
+          <li><strong>Héberger le stockage et le registre</strong> : un S3 et une base MLflow
+            hors du poste, sauvegardés ; pour DVC, seule l’adresse change.</li>
+          <li><strong>Sortir les secrets du dépôt</strong>, dans un coffre ou des variables
+            injectées au déploiement.</li>
+          <li><strong>Brancher les tests sur une intégration continue</strong> et couvrir la
+            chaîne de réentraînement de bout en bout.</li>
         </ul>
       </div>
     </div>
@@ -1118,7 +1165,7 @@ x-api-key: mlops-covid-secret-key
 
   <div class="foot">
     <span>Luvengani Dass · Saadia Szapiro — Merci de votre attention</span>
-    <span class="num">17 / 17</span>
+    <span class="num">19 / 19</span>
   </div>
 </section>
 

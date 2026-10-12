@@ -42,8 +42,8 @@ from studio_css import (  # noqa: E402
 )
 import studio_charts as ch  # noqa: E402
 from data import (  # noqa: E402
-    DonneesManquantes, date_fr, load_complet, load_model, load_serie, load_stats,
-    load_test, predire,
+    DonneesManquantes, date_fr, load_complet, load_etat_mlops, load_model, load_serie,
+    load_stats, load_test, predire,
 )
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -351,7 +351,15 @@ with st.sidebar:
         "Simulateur Interactif",
         "Conclusion",
     )
-    page = st.radio("Sections", PAGES, label_visibility="collapsed")
+    def _depuis_url() -> int:
+        """?page=4 ouvre directement la quatrième section — pratique pour un lien."""
+        try:
+            return max(1, min(len(PAGES), int(st.query_params.get("page")))) - 1
+        except (TypeError, ValueError):
+            return 0
+
+    page = st.radio("Sections", PAGES, index=_depuis_url(),
+                    label_visibility="collapsed")
 
     # =========================
     # PIPELINE DE SOUTENANCE
@@ -396,7 +404,7 @@ with st.sidebar:
     pdf = os.path.join(HERE, "presentation-mlops-covid.pdf")
     if os.path.exists(pdf):
         with open(pdf, "rb") as fh:
-            st.download_button("Support PDF · 17 pages", fh.read(),
+            st.download_button("Support PDF · 19 pages", fh.read(),
                                file_name="presentation-mlops-covid.pdf",
                                mime="application/pdf", use_container_width=True)
 
@@ -483,7 +491,8 @@ if page == "Introduction":
                 - Comparer le modèle à des **références naïves**, et pas seulement à
                   lui-même
                 - Évaluer par des métriques précises : *MAE, RMSE, R²*
-                - **Industrialiser** : conteneurisation, traçabilité des expériences,
+                - **Industrialiser** : conteneurisation, versioning des données et
+                  des modèles, registre de modèles, monitoring en production,
                   réentraînement automatique
                 - Porter un **regard critique** sur les résultats obtenus
                 """
@@ -498,11 +507,13 @@ if page == "Introduction":
                 ("Horizon", f"J+{S['horizon']}"),
                 ("Modèle", f"RandomForest · {S['n_estimators']} arbres"),
                 ("Variables", f"{len(S['features'])}"),
-                ("Services", "4 conteneurs Docker"),
+                ("Services", "8 conteneurs Docker"),
             ])
             st.markdown("<div style='height:.6rem'></div>", unsafe_allow_html=True)
             pills([("Python 3.11", ""), ("scikit-learn", ""), ("FastAPI", "violet"),
-                   ("MLflow", "violet"), ("Airflow", "amber"), ("Docker", "green")])
+                   ("MLflow", "violet"), ("DVC", "violet"), ("Airflow", "amber"),
+                   ("Prometheus", "amber"), ("Evidently", "amber"),
+                   ("Docker", "green")])
 
     st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
 
@@ -510,7 +521,7 @@ if page == "Introduction":
     metric_fr(m1, "Jours de données", S["n_total"], "j")
     metric_fr(m2, "Variables construites", len(S["features"]))
     metric_fr(m3, "MAE sur le test", S["mae"], "cas")
-    metric_fr(m4, "Services conteneurisés", 4)
+    metric_fr(m4, "Services conteneurisés", 8)
 
     st.markdown("---")
     st.markdown(
@@ -681,25 +692,30 @@ elif page == "Architecture MLOps":
     titre("fa-diagram-project", "Architecture MLOps")
 
     with card(wow_mode):
-        t1, t2, t3 = st.tabs(["Services Docker", "API FastAPI", "MLflow & Airflow"])
+        E = load_etat_mlops()
+        t1, t3, t4, t5, t2 = st.tabs(["Vue d'ensemble", "Versioning", "Registre",
+                                      "Monitoring", "API FastAPI"])
 
         with t1:
-            titre("fa-cubes", "Quatre services, un volume partagé, une boucle fermée",
-                  "h3")
+            titre("fa-cubes", "Huit services, trois boucles : entraîner, servir, "
+                  "surveiller", "h3")
             from studio_archi import ARCHI_SVG
             html(ARCHI_SVG)
-            note("La boucle est fermée : chaque réentraînement écrit un nouveau modèle "
-                 "sur le volume et un nouveau run dans MLflow, sans toucher au code de "
-                 "l'API.")
+            note("Trois exigences, trois réponses : le <b>versioning</b> des données et "
+                 "des modèles (DVC, MinIO, MLflow), le <b>registre</b> et son cycle de "
+                 "vie (MLflow, Airflow), le <b>monitoring</b> en production (Prometheus, "
+                 "Alertmanager, Grafana, Evidently). Chacune a son onglet.")
 
         with t2:
             g, d = st.columns([1, 1], gap="large")
             with g:
-                titre("fa-plug", "Trois points d'entrée, une clé", "h3")
+                titre("fa-plug", "Cinq points d'entrée, une clé", "h3")
                 kv([
-                    ("<code>GET /</code>", "message d'état"),
-                    ("<code>GET /health</code>", "modèle chargé, pays, MAE, RMSE"),
+                    ("<code>GET /health</code>", "modèle chargé, version, origine"),
                     ("<code>POST /predict</code>", "prévision — protégé par clé"),
+                    ("<code>POST /model/reload</code>",
+                     "recharge la version en production — protégé"),
+                    ("<code>GET /metrics</code>", "métriques pour Prometheus"),
                     ("<code>GET /docs</code>", "documentation Swagger générée"),
                 ])
                 st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
@@ -709,7 +725,11 @@ elif page == "Architecture MLOps":
                       rejeté avant d'atteindre le modèle
                     - **Clé API** en en-tête `x-api-key` ; absente ou incorrecte,
                       la requête reçoit un `401`
-                    - **Chargement unique** du modèle au démarrage du service
+                    - **Modèle lu dans le registre** : la version qui porte l'alias
+                      `production` ; si MLflow est injoignable, repli sur le fichier
+                      local
+                    - **Date facultative** : elle permet de comparer plus tard la
+                      prévision à la valeur observée
                     """
                 )
             with d:
@@ -722,47 +742,158 @@ elif page == "Architecture MLOps":
                     '  "rolling_mean_7": 1300,\n'
                     '  "new_deaths": 25,\n'
                     '  "people_vaccinated": 40000000,\n'
-                    '  "stringency_index": 45.5\n'
+                    '  "stringency_index": 45.5,\n'
+                    '  "date": "2023-03-01"\n'
                     '}',
                     language="json",
                 )
                 st.markdown("**Réponse**")
                 st.code('200 OK\n\n'
-                        '{ "prediction_new_cases_h_plus_7": 5300.66 }',
+                        '{ "prediction_new_cases_h_plus_7": 5300.66,\n'
+                        '  "model_version": "4" }',
                         language="json")
 
+        # ----- versioning : DVC + MLflow -----
         with t3:
+            ent = E["entrainement"]
             g, d = st.columns([1, 1], gap="large")
             with g:
-                titre("fa-flask", "MLflow — la mémoire des expériences", "h3")
+                titre("fa-code-branch", "DVC — les données et le modèle", "h3")
+                kv([
+                    ("<code>ingest</code>", "data/raw/owid_covid.csv"),
+                    ("<code>prepare</code>", "data/processed/covid_features.csv"),
+                    ("<code>train</code>", "models/covid_rf_model.joblib"),
+                ])
+                st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
                 st.markdown(
                     """
-                    - Expérience `covid_prediction_experiment`, stockée en SQLite,
-                      consultable sur `:5000`
-                    - **9 paramètres** journalisés par run : pays, fenêtre de dates,
-                      horizon, graine, type de modèle, nombre d'arbres, taille du
-                      train, liste des variables
-                    - **2 métriques** : MAE et RMSE — de quoi comparer deux versions
-                      sans relire le code
+                    - `dvc.lock` garde l'**empreinte** de chaque fichier de données, de
+                      chaque script et des paramètres : un commit git désigne une
+                      version exacte du code, des données et du modèle
+                    - `dvc repro` ne rejoue que les étapes dont une entrée a changé
+                    - `dvc push` envoie les fichiers dans **MinIO**, un stockage
+                      compatible S3 (`s3://dvc`)
+                    - Retour arrière : `git checkout <commit>` puis `dvc checkout`
                     """
                 )
-                note("3 runs enregistrés à ce jour, aux métriques identiques : la "
-                     "graine fixée rend l'entraînement parfaitement reproductible.")
             with d:
-                titre("fa-rotate", "Airflow — la boucle de réentraînement", "h3")
+                titre("fa-link", "MLflow — le lien entre modèle et données", "h3")
                 st.markdown(
                     """
-                    - DAG `retrain_covid_model`, planifié `@weekly` — la même cadence
-                      que la publication des données
-                    - Une tâche `BashOperator` relance la chaîne complète :
-                      téléchargement, prétraitement, variables, entraînement,
-                      journalisation
-                    - `retries=1` avec cinq minutes d'attente ; `catchup=False` pour ne
-                      pas rattraper l'historique au premier démarrage
+                    Chaque entraînement enregistre dans MLflow ses **9 paramètres**,
+                    ses **2 métriques**, le jeu de données utilisé, et deux
+                    étiquettes : l'empreinte DVC des données et le commit git.
                     """
                 )
-                note("Le déclenchement manuel reste possible depuis l'interface — "
-                     "utile pour une démonstration ou après un correctif.", "amber")
+                if ent:
+                    kv([
+                        ("Version du modèle", f"covid_rf_model v{ent['model_version']}"),
+                        ("Empreinte des données", f"<code>{ent['data_md5'][:12]}…</code>"),
+                        ("Run MLflow", f"<code>{ent['mlflow_run_id'][:12]}…</code>"),
+                        ("Lignes d'apprentissage · de test",
+                         f"{num(ent['train_rows'])} · {num(ent['test_rows'])}"),
+                    ])
+                note("Git versionne le code, DVC les fichiers lourds, MLflow chaque "
+                     "entraînement. À partir d'un modèle, on retrouve les données et le "
+                     "code qui l'ont produit.")
+
+        # ----- registre : MLflow + Airflow -----
+        with t4:
+            promo = E["promotion"]
+            g, d = st.columns([1, 1], gap="large")
+            with g:
+                titre("fa-box-archive", "Un cycle de vie porté par deux alias", "h3")
+                kv([
+                    ("<code>candidate</code>", "dernière version entraînée, à valider"),
+                    ("<code>production</code>", "version servie par l'API"),
+                    ("<code>validation_status</code>", "promu · rejeté · remplacé"),
+                ])
+                st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
+                st.markdown(
+                    """
+                    - **Règle de promotion** : le candidat et la production sont
+                      évalués sur le même jeu de test ; le candidat ne passe que si sa
+                      MAE est inférieure ou égale
+                    - **Retour arrière** : déplacer l'alias `production` vers une
+                      version antérieure, puis appeler `POST /model/reload`
+                    """
+                )
+                note("Les alias remplacent les étapes Staging / Production / Archived, "
+                     "que MLflow a dépréciées : <code>candidate</code> joue le rôle de "
+                     "Staging, l'étiquette <code>remplacé</code> celui d'Archived.",
+                     "amber")
+            with d:
+                titre("fa-rotate", "Airflow — le DAG retrain_covid_model", "h3")
+                st.code(
+                    "ingest_data ▸ prepare_data ▸ train_model\n"
+                    "            ▸ promote_model ▸ version_artifacts ▸ reload_api",
+                    language="text",
+                )
+                st.markdown(
+                    """
+                    - Planifié `@weekly`, à la cadence de publication des données ;
+                      déclenchable à la main
+                    - `train_model` crée une version `candidate` ; `promote_model`
+                      applique la règle ; `reload_api` fait charger la nouvelle
+                      production à l'API, sans redémarrage
+                    """
+                )
+                if promo:
+                    kv([
+                        ("Version en production", f"v{promo['production_version']}"),
+                        ("MAE du dernier candidat",
+                         f"{num(promo['candidate_mae'], 2)} cas"),
+                        ("Dernière décision", promo["reason"]),
+                    ])
+
+        # ----- monitoring : Prometheus + Evidently + Airflow -----
+        with t5:
+            mon = E["monitoring"]
+            g, d = st.columns([1, 1], gap="large")
+            with g:
+                titre("fa-gauge-high", "Prometheus — le service sous surveillance", "h3")
+                st.markdown(
+                    """
+                    - L'API expose `/metrics`, collecté toutes les **15 secondes** :
+                      requêtes, temps de réponse, prédictions par version du modèle
+                    - **7 règles d'alerte** : API indisponible, aucun modèle chargé,
+                      taux d'erreur, latence, dérive des données, performance
+                      dégradée, monitoring en retard
+                    - **Alertmanager** regroupe les alertes et les achemine ;
+                      **Grafana** les affiche sur un tableau de bord créé au
+                      démarrage
+                    """
+                )
+                note("Le canal de notification (mail, Slack) reste à brancher : les "
+                     "alertes sont routées et consultables, pas encore envoyées.",
+                     "amber")
+            with d:
+                titre("fa-wave-square", "Evidently — le modèle sous surveillance", "h3")
+                st.markdown(
+                    """
+                    - Chaque prédiction est **journalisée** avec ses entrées
+                    - **Dérive** : les entrées reçues sont comparées aux données
+                      d'entraînement ; alerte si au moins la moitié des variables ont
+                      changé de distribution
+                    - **Performance** : les prévisions datées sont rapprochées de la
+                      valeur observée à J+7 ; alerte au-delà de 1,5 fois l'erreur
+                      relative de référence
+                    - Le DAG `monitor_covid_model` tourne `@daily` et **relance
+                      l'entraînement** en cas de dérive ou de dégradation
+                    """
+                )
+                if mon and mon.get("status") == "ok":
+                    kv([
+                        ("Dernier contrôle", f"{mon['timestamp'][:10]} · "
+                                             f"{num(mon['analysed_rows'])} prédictions"),
+                        ("Variables en dérive",
+                         f"{mon['drifted_features_count']} sur {len(S['features'])}"),
+                        ("MAE en production",
+                         f"{num(mon['production_mae'], 2)} cas"
+                         if mon.get("production_mae") is not None else "non mesurée"),
+                        ("Réentraînement recommandé",
+                         "oui" if mon["retrain_recommended"] else "non"),
+                    ])
 
 # ---------- RÉSULTATS & ANALYSE ----------
 elif page == "Résultats & Analyse":
@@ -1160,22 +1291,30 @@ elif page == "Conclusion":
             with g:
                 titre("fa-vial-circle-check", "Ce qui est vérifié", "h3")
                 a, b = st.columns(2)
-                metric_fr(a, "Tests pytest réussis", "3 / 3")
+                metric_fr(a, "Tests pytest réussis", "8 / 8")
                 metric_fr(b, "Échecs", 0)
                 st.markdown("<div style='height:.7rem'></div>", unsafe_allow_html=True)
                 kv([
                     ("<code>/health</code>", "200 · modèle chargé"),
                     ("<code>/predict</code> sans clé", "401"),
-                    ("<code>/predict</code> avec clé", "200 · prévision"),
+                    ("<code>/predict</code> avec clé, avec ou sans date",
+                     "200 · prévision"),
+                    ("<code>/metrics</code> · <code>/model/reload</code>", "200"),
+                    ("Construction des variables", "décalages, cible, lignes incomplètes"),
                 ])
-                note("Les tests s'exécutent contre l'application réelle via le "
-                     "<code>TestClient</code> de FastAPI, modèle chargé compris.")
+                note("Les tests de l'API s'exécutent contre l'application réelle via le "
+                     "<code>TestClient</code> de FastAPI, modèle chargé compris. Deux "
+                     "tests de plus, sur les règles de dérive et de performance, "
+                     "s'exécutent dans l'image Airflow, où Evidently est installé.")
                 st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
                 titre("fa-docker", "Conteneurisation", "h3")
                 st.markdown(
-                    "Trois images (API, MLflow, Airflow) et quatre services orchestrés "
-                    "par un seul `docker compose up`. Trois volumes assurent la "
-                    "persistance : modèle entraîné, base MLflow, métadonnées Airflow."
+                    "Trois images construites (API, MLflow, Airflow), cinq images "
+                    "publiques (MinIO et son client, Prometheus, Alertmanager, "
+                    "Grafana) et huit "
+                    "services orchestrés par un seul `docker compose up`. Les "
+                    "volumes assurent la persistance : modèle, base MLflow, "
+                    "métadonnées Airflow, stockage MinIO."
                 )
             with d:
                 st.plotly_chart(ch.radar_projet(S), use_container_width=True,
@@ -1200,15 +1339,15 @@ elif page == "Conclusion":
                     f"l'erreur relative moyenne atteint {S['mape_nz']:.0f} %.")
             st.markdown("<div style='height:.9rem'></div>", unsafe_allow_html=True)
             l4, l5, l6 = st.columns(3, gap="medium")
-            finding(l4, "fa-code-branch", AMBRE, "04 · Modèle non versionné",
-                    "L'appel au registre MLflow est commenté dans le code : impossible "
-                    "de promouvoir ou de revenir en arrière proprement.")
+            finding(l4, "fa-server", AMBRE, "04 · Tout sur une seule machine",
+                    "MinIO, MLflow et Airflow tournent sur le même poste : ni "
+                    "sauvegarde distante, ni reprise si la machine tombe.")
             finding(l5, "fa-key", ROUGE, "05 · Secret en clair",
                     "La clé API figure dans <code>docker-compose.yml</code> et dans le "
                     "dépôt.")
-            finding(l6, "fa-bell-slash", AMBRE, "06 · Aucune surveillance",
-                    "Ni détection de dérive des données, ni alerte si la qualité des "
-                    "prévisions se dégrade.")
+            finding(l6, "fa-bell-slash", AMBRE, "06 · Alertes sans destinataire",
+                    "Les alertes sont déclenchées, regroupées et routées, mais aucun "
+                    "canal (mail, Slack) n'est branché : il faut aller les lire.")
             st.markdown("<div style='height:.9rem'></div>", unsafe_allow_html=True)
             note("Ces limites ne sont pas des oublis : elles ont été identifiées en "
                  "analysant les résultats, et c'est cette analyse qui a produit les "
@@ -1236,16 +1375,15 @@ elif page == "Conclusion":
                 titre("fa-gears", "Sur l'industrialisation", "h3")
                 st.markdown(
                     """
-                    - **Activer le registre de modèles MLflow** avec des étapes
-                      Staging / Production et un retour arrière en une commande
-                    - **Superviser avec Prometheus et Grafana** : latence et taux
-                      d'erreur de `/predict`, MAE glissante recalculée à chaque
-                      publication, et une alerte dès qu'elle dépasse son seuil — c'est
-                      la réponse directe à la limite 06
-                    - **Sortir les secrets du dépôt** et surveiller la dérive des
-                      données entrantes
-                    - **Étendre les tests** au prétraitement et à la construction des
-                      variables, puis les brancher sur une intégration continue
+                    - **Brancher un canal de notification** sur Alertmanager (mail ou
+                      Slack) — c'est la réponse directe à la limite 06
+                    - **Héberger le stockage et le registre** : un S3 et une base
+                      MLflow hors du poste, sauvegardés ; pour DVC, seule l'adresse
+                      change
+                    - **Sortir les secrets du dépôt**, dans un coffre ou des
+                      variables d'environnement injectées au déploiement
+                    - **Brancher les tests sur une intégration continue** et couvrir
+                      la chaîne de réentraînement de bout en bout
                     """
                 )
             st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)

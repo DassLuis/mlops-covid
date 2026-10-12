@@ -1,6 +1,6 @@
-"""Les dix-sept diapositives de la présentation.
+"""Les dix-neuf diapositives de la présentation.
 
-Le contenu reprend mot pour mot le support PDF. Seule la diapositive 14
+Le contenu reprend mot pour mot le support PDF. Seule la diapositive 16
 (Démonstration) gagne un laboratoire interactif : elle est le moment où, en
 soutenance, on montre la chaîne en fonctionnement.
 """
@@ -15,7 +15,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 import charts
-from data import date_fr, load_model, predire
+from data import date_fr, load_etat_mlops, load_model, predire
+from studio_archi import ARCHI_SVG_CLAIR
 from theme import (
     ACCENT, ACCENT_DIM, INK2, INK3, WARM, GOOD,
     bullets, card, cols, foot, icon, num, rail, stat, stats_row, steps, table,
@@ -38,12 +39,13 @@ def s01(S, D):
     w(block(
         '<div class="h1">Prédire les cas de COVID-19<br>à sept jours</div>',
         '<p class="lead">Une chaîne MLOps complète, des données publiques mondiales '
-        'jusqu’à une API d’inférence conteneurisée, réentraînée automatiquement.</p>',
+        'jusqu’à une API d’inférence conteneurisée : modèle versionné, promu par '
+        'comparaison, surveillé en production et réentraîné automatiquement.</p>',
         '<div style="height:1.6rem"></div>',
         stats_row(
             stat(num(S["n_total"]), "Jours de données", "j"),
             stat("11", "Variables construites"),
-            stat("4", "Services conteneurisés"),
+            stat("8", "Services conteneurisés"),
             stat(num(S["mae"], 0), "MAE sur le test", "cas", kind="hi"),
             cols=4,
         ),
@@ -57,7 +59,7 @@ def s01(S, D):
         '<div><p class="stat-l" style="margin:0 0 .35rem">Modèle</p>'
         '<p class="txt">Random Forest<br>11 variables · horizon J+7</p></div>'
         '<div><p class="stat-l" style="margin:0 0 .35rem">Livrable</p>'
-        '<p class="txt">API · MLflow · Airflow<br>orchestrés par Docker</p></div>'
+        '<p class="txt">API · DVC · MLflow · Airflow<br>Prometheus · Evidently</p></div>'
         '</div>',
     ))
 
@@ -335,105 +337,15 @@ def s10(S, D):
 
 
 # ══════════════════════════ 11 · architecture ══════════════════════════
-ARCHI_SVG = """
-<svg viewBox="0 0 1000 392" role="img" style="width:100%;height:auto"
- aria-label="Architecture : l’interface Airflow déclenche le planificateur, qui relance
- chaque semaine l’entraînement ; celui-ci télécharge les données OWID, journalise dans
- MLflow et écrit le modèle sur un volume partagé que l’API FastAPI charge au démarrage.">
-<defs>
-<marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
- orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2a78d6"/></marker>
-<marker id="fb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
- orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d2501f"/></marker>
-</defs>
-<rect x="196" y="8" width="768" height="292" fill="none" stroke="#b9c2cd"
- stroke-width="1" stroke-dasharray="5 4"/>
-<text x="204" y="24" font-family="IBM Plex Mono,monospace" font-size="10.5"
- fill="#7d8896" letter-spacing="1.1">DOCKER COMPOSE · 4 SERVICES</text>
-<rect x="0" y="164" width="160" height="52" fill="#f4f6f9"/>
-<text x="80" y="188" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#101720" text-anchor="middle">OWID · GitHub</text>
-<text x="80" y="204" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#7d8896" text-anchor="middle">owid-covid-data.csv</text>
-<rect x="240" y="34" width="140" height="46" fill="#eaf2fd"/>
-<text x="310" y="55" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#1c5cab" text-anchor="middle">airflow-webserver</text>
-<text x="310" y="70" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#1c5cab" text-anchor="middle">:8080</text>
-<rect x="240" y="106" width="140" height="46" fill="#eaf2fd"/>
-<text x="310" y="127" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#1c5cab" text-anchor="middle">airflow-scheduler</text>
-<text x="310" y="142" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#1c5cab" text-anchor="middle">retrain_covid_model</text>
-<rect x="240" y="178" width="140" height="52" fill="#2a78d6"/>
-<text x="310" y="202" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#ffffff" text-anchor="middle">Entraînement</text>
-<text x="310" y="218" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#cde2fb" text-anchor="middle">src/train.py</text>
-<rect x="470" y="68" width="180" height="52" fill="#eaf2fd"/>
-<text x="560" y="92" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#1c5cab" text-anchor="middle">MLflow</text>
-<text x="560" y="108" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#1c5cab" text-anchor="middle">:5000 · base SQLite</text>
-<rect x="470" y="178" width="180" height="52" fill="#fceee8"/>
-<text x="560" y="202" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#d2501f" text-anchor="middle">Volume partagé</text>
-<text x="560" y="218" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#d2501f" text-anchor="middle">models/*.joblib</text>
-<rect x="740" y="178" width="180" height="52" fill="#eaf2fd"/>
-<text x="830" y="202" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#1c5cab" text-anchor="middle">API FastAPI</text>
-<text x="830" y="218" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#1c5cab" text-anchor="middle">:8000</text>
-<rect x="740" y="332" width="180" height="46" fill="#f4f6f9"/>
-<text x="830" y="360" font-family="IBM Plex Sans,sans-serif" font-size="12.5"
- font-weight="600" fill="#101720" text-anchor="middle">Client · Swagger · curl</text>
-<line x1="160" y1="204" x2="236" y2="204" stroke="#2a78d6" stroke-width="1.6"
- marker-end="url(#fa)"/>
-<text x="80" y="240" font-family="IBM Plex Sans,sans-serif" font-size="10.5"
- fill="#495563" text-anchor="middle">téléchargement du CSV</text>
-<line x1="310" y1="82" x2="310" y2="102" stroke="#2a78d6" stroke-width="1.6"
- marker-end="url(#fa)"/>
-<text x="322" y="97" font-family="IBM Plex Sans,sans-serif" font-size="10.5"
- fill="#495563">Trigger DAG manuel</text>
-<line x1="310" y1="154" x2="310" y2="174" stroke="#2a78d6" stroke-width="1.6"
- marker-end="url(#fa)"/>
-<text x="322" y="169" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#495563">@weekly</text>
-<polyline points="382,190 424,190 424,94 466,94" fill="none" stroke="#2a78d6"
- stroke-width="1.6" marker-end="url(#fa)"/>
-<text x="560" y="58" font-family="IBM Plex Sans,sans-serif" font-size="10.5"
- fill="#495563" text-anchor="middle">9 paramètres · MAE · RMSE</text>
-<line x1="382" y1="216" x2="466" y2="216" stroke="#d2501f" stroke-width="1.6"
- marker-end="url(#fb)"/>
-<text x="424" y="248" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#495563" text-anchor="middle">joblib.dump</text>
-<line x1="652" y1="204" x2="736" y2="204" stroke="#d2501f" stroke-width="1.6"
- marker-end="url(#fb)"/>
-<text x="694" y="248" font-family="IBM Plex Sans,sans-serif" font-size="10.5"
- fill="#495563" text-anchor="middle">chargé au démarrage</text>
-<line x1="854" y1="328" x2="854" y2="234" stroke="#2a78d6" stroke-width="1.6"
- marker-end="url(#fa)"/>
-<text x="866" y="272" font-family="IBM Plex Sans,sans-serif" font-size="10.5"
- fill="#495563">POST /predict</text>
-<text x="866" y="288" font-family="IBM Plex Mono,monospace" font-size="10"
- fill="#495563">x-api-key</text>
-<line x1="806" y1="234" x2="806" y2="328" stroke="#2a78d6" stroke-width="1.6"
- stroke-dasharray="4 3" marker-end="url(#fa)"/>
-<text x="794" y="284" font-family="IBM Plex Sans,sans-serif" font-size="10.5"
- fill="#495563" text-anchor="end">prévision J+7</text>
-</svg>
-"""
-
-
 def s11(S, D):
     w(rail("conteneur", "Architecture", "docker compose"))
     w(block(
-        _titre("Quatre services, un volume partagé, une boucle fermée"),
-        f'<div style="margin-top:.6rem">{ARCHI_SVG}</div>',
-        '<p class="small">La boucle est fermée : chaque réentraînement écrit un nouveau '
-        'modèle sur le volume et un nouveau run dans MLflow, sans toucher au code de '
-        'l’API.</p>',
+        _titre("Huit services, trois boucles : entraîner, servir, surveiller"),
+        f'<div style="margin-top:.6rem">{ARCHI_SVG_CLAIR}</div>',
+        '<p class="small">Trois exigences, trois réponses : le versioning des données et '
+        'des modèles (DVC, MinIO, MLflow), le registre et son cycle de vie (MLflow, '
+        'Airflow), le monitoring en production (Prometheus, Alertmanager, Grafana, '
+        'Evidently). Les diapositives 13 à 15 les détaillent.</p>',
     ))
 
 
@@ -441,12 +353,13 @@ def s11(S, D):
 def s12(S, D):
     w(rail("api", "Mise en service", "API FastAPI"))
     w(block(
-        _titre("Trois points d’entrée, une clé, une réponse"),
+        _titre("Cinq points d’entrée, une clé, une réponse"),
         cols(
             table([
-                ("GET /", "message d’état"),
-                ("GET /health", "modèle chargé, pays, horizon, MAE, RMSE"),
+                ("GET /health", "modèle chargé, version, origine"),
                 ("POST /predict", "prévision — protégé par clé"),
+                ("POST /model/reload", "recharge la version en production — protégé"),
+                ("GET /metrics", "métriques pour Prometheus"),
                 ("GET /docs", "documentation Swagger générée"),
             ], head=("Endpoint", "Rôle"))
             + bullets([
@@ -454,8 +367,9 @@ def s12(S, D):
                 "est rejeté avant d’atteindre le modèle.",
                 "<strong>Clé API</strong> en en-tête <code>x-api-key</code> ; absente ou "
                 "incorrecte, la requête reçoit un <code>401</code>.",
-                "<strong>Chargement unique</strong> du modèle au démarrage du service, "
-                "pas à chaque appel.",
+                "<strong>Modèle lu dans le registre</strong> : la version qui porte "
+                "l’alias <code>production</code> ; si MLflow est injoignable, repli sur "
+                "le fichier local.",
             ]),
             '<p class="stat-l" style="margin:0 0 .4rem">Requête</p>'
             '<div class="code">POST /predict<br>'
@@ -465,48 +379,136 @@ def s12(S, D):
             '&nbsp;&nbsp;<span class="s">"rolling_mean_7"</span>: 1300,<br>'
             '&nbsp;&nbsp;<span class="s">"new_deaths"</span>: 25,<br>'
             '&nbsp;&nbsp;<span class="s">"people_vaccinated"</span>: 40000000,<br>'
-            '&nbsp;&nbsp;<span class="s">"stringency_index"</span>: 45.5<br>}</div>'
+            '&nbsp;&nbsp;<span class="s">"stringency_index"</span>: 45.5,<br>'
+            '&nbsp;&nbsp;<span class="s">"date"</span>: '
+            '<span class="s">"2023-03-01"</span><br>}</div>'
             '<p class="stat-l" style="margin:.9rem 0 .4rem">Réponse</p>'
             '<div class="code" style="border-left-color:var(--warm)">200 OK<br><br>'
-            '{ <span class="s">"prediction_new_cases_h_plus_7"</span>: 5300.66 }</div>',
+            '{ <span class="s">"prediction_new_cases_h_plus_7"</span>: 5300.66,<br>'
+            '&nbsp;&nbsp;<span class="s">"model_version"</span>: '
+            '<span class="s">"4"</span> }</div>',
         ),
     ))
 
 
-# ══════════════════════════ 13 · MLflow & Airflow ══════════════════════════
+# ══════════════════════════ 13 · versioning ══════════════════════════
 def s13(S, D):
-    w(rail("cycle", "Industrialisation", "Traçabilité & orchestration"))
+    ent = load_etat_mlops()["entrainement"]
+    trace = ""
+    if ent:
+        trace = table([
+            ("Version du modèle", f"covid_rf_model v{ent['model_version']}"),
+            ("Empreinte des données", f"{ent['data_md5'][:12]}…"),
+            ("Run MLflow", f"{ent['mlflow_run_id'][:12]}…"),
+        ], head=("Dernier entraînement", ""))
+    w(rail("cycle", "Versioning", "DVC · MinIO · MLflow"))
     w(block(
-        _titre("Chaque entraînement laisse une trace, et se relance sans intervention"),
+        _titre("À partir d’un modèle, retrouver ses données et son code"),
         cols(
-            card("MLflow — la mémoire des expériences", bullets([
-                "Expérience <code>covid_prediction_experiment</code>, stockée en SQLite, "
-                "consultable sur <code>:5000</code>.",
-                "<strong>9 paramètres</strong> journalisés par run : pays, fenêtre de "
-                "dates, horizon, graine, type de modèle, nombre d’arbres, taille du "
-                "train, liste des variables.",
-                "<strong>2 métriques</strong> : MAE et RMSE — de quoi comparer deux "
-                "versions sans relire le code.",
+            card("DVC — les données et le modèle", bullets([
+                "Un pipeline en trois étapes : <code>ingest</code>, <code>prepare</code>, "
+                "<code>train</code>.",
+                "<code>dvc.lock</code> garde l’<strong>empreinte</strong> de chaque "
+                "fichier, de chaque script et des paramètres : un commit git désigne "
+                "une version exacte du code, des données et du modèle.",
+                "<code>dvc repro</code> ne rejoue que les étapes dont une entrée a "
+                "changé ; <code>dvc push</code> envoie les fichiers dans "
+                "<strong>MinIO</strong>, un stockage compatible S3.",
             ]))
-            + '<p class="small"><strong>3 runs enregistrés</strong> à ce jour, aux '
-              'métriques identiques : la graine fixée rend l’entraînement parfaitement '
-              'reproductible.</p>',
-            card("Airflow — la boucle de réentraînement", bullets([
-                "DAG <code>retrain_covid_model</code>, planifié <code>@weekly</code> — la "
-                "même cadence que la publication des données.",
-                "Une tâche <code>BashOperator</code> relance la chaîne complète : "
-                "téléchargement, prétraitement, variables, entraînement, journalisation.",
-                "<code>retries=1</code> avec cinq minutes d’attente ; "
-                "<code>catchup=False</code> pour ne pas rattraper l’historique au premier "
-                "démarrage.",
+            + '<p class="small">Retour arrière : <code>git checkout</code> puis '
+              '<code>dvc checkout</code>.</p>',
+            card("MLflow — le lien entre modèle et données", bullets([
+                "Chaque entraînement enregistre ses <strong>9 paramètres</strong> et ses "
+                "<strong>2 métriques</strong>, MAE et RMSE.",
+                "Il enregistre aussi le jeu de données utilisé, son empreinte DVC et "
+                "le commit git.",
             ], warm=True), kind="warm")
-            + '<p class="small">Le déclenchement manuel reste possible depuis '
-              'l’interface — utile pour une démonstration ou après un correctif.</p>',
+            + trace,
         ),
     ))
 
 
-# ══════════════════════════ 14 · démonstration (interactive) ══════════════════════════
+# ══════════════════════════ 14 · registre ══════════════════════════
+def s14(S, D):
+    promo = load_etat_mlops()["promotion"]
+    decision = ""
+    if promo:
+        decision = table([
+            ("Version en production", f"v{promo['production_version']}"),
+            ("MAE du dernier candidat", f"{num(promo['candidate_mae'], 2)} cas"),
+            ("Décision", promo["reason"]),
+        ], head=("Dernière promotion", ""))
+    w(rail("cycle", "Registre de modèles", "MLflow · Airflow"))
+    w(block(
+        _titre("Un modèle n’entre en production que s’il fait au moins aussi bien"),
+        cols(
+            card("MLflow — un cycle de vie porté par deux alias", bullets([
+                "<code>candidate</code> : la dernière version entraînée, à valider.",
+                "<code>production</code> : la version servie par l’API.",
+                "Le candidat et la production sont évalués <strong>sur le même jeu de "
+                "test</strong> ; le candidat ne passe que si sa MAE est inférieure ou "
+                "égale. Chaque version porte son verdict : promu, rejeté, remplacé.",
+            ]))
+            + '<p class="small">Les alias remplacent les étapes Staging / Production, '
+              'que MLflow a dépréciées. Retour arrière : déplacer l’alias '
+              '<code>production</code>, puis appeler <code>POST /model/reload</code>.</p>',
+            card("Airflow — le DAG retrain_covid_model", bullets([
+                "Six tâches : <code>ingest_data</code>, <code>prepare_data</code>, "
+                "<code>train_model</code>, <code>promote_model</code>, "
+                "<code>version_artifacts</code>, <code>reload_api</code>.",
+                "Planifié <code>@weekly</code>, à la cadence de publication des "
+                "données ; déclenchable à la main.",
+                "<code>reload_api</code> fait charger la nouvelle production à l’API, "
+                "sans redémarrage.",
+            ], warm=True), kind="warm")
+            + decision,
+        ),
+    ))
+
+
+# ══════════════════════════ 15 · monitoring ══════════════════════════
+def s15(S, D):
+    mon = load_etat_mlops()["monitoring"]
+    controle = ""
+    if mon and mon.get("status") == "ok":
+        controle = table([
+            ("Prédictions analysées", num(mon["analysed_rows"])),
+            ("Variables en dérive",
+             f"{mon['drifted_features_count']} sur {len(S['features'])}"),
+            ("Réentraînement recommandé", "oui" if mon["retrain_recommended"] else "non"),
+        ], head=(f"Dernier contrôle · {mon['timestamp'][:10]}", ""))
+    w(rail("qualite", "Monitoring", "Prometheus · Evidently · Airflow"))
+    w(block(
+        _titre("Surveiller le service, surveiller le modèle, réagir seul"),
+        cols(
+            card("Prometheus — le service", bullets([
+                "L’API expose <code>/metrics</code>, collecté toutes les "
+                "<strong>15 secondes</strong> : requêtes, temps de réponse, prédictions "
+                "par version du modèle.",
+                "<strong>7 règles d’alerte</strong> : API indisponible, aucun modèle "
+                "chargé, taux d’erreur, latence, dérive, performance dégradée, "
+                "monitoring en retard.",
+                "<strong>Alertmanager</strong> regroupe les alertes et les achemine ; "
+                "<strong>Grafana</strong> les affiche.",
+            ]))
+            + '<p class="small">Le canal de notification (mail, Slack) reste à '
+              'brancher.</p>',
+            card("Evidently — le modèle", bullets([
+                "Chaque prédiction est journalisée avec ses entrées.",
+                "<strong>Dérive</strong> : alerte si au moins la moitié des variables "
+                "ont changé de distribution par rapport à l’entraînement.",
+                "<strong>Performance</strong> : les prévisions datées sont rapprochées "
+                "de la valeur observée à J+7 ; alerte au-delà de 1,5 fois l’erreur "
+                "relative de référence.",
+                "Le DAG <code>monitor_covid_model</code> tourne <code>@daily</code> et "
+                "<strong>relance l’entraînement</strong> si nécessaire.",
+            ], warm=True), kind="warm")
+            + controle,
+        ),
+    ))
+
+
+# ══════════════════════════ 16 · démonstration (interactive) ══════════════════════════
 FEATURES = [f"lag_{k}" for k in range(1, 8)] + [
     "rolling_mean_7", "new_deaths", "people_vaccinated", "stringency_index",
 ]
@@ -515,14 +517,14 @@ FEATURES = [f"lag_{k}" for k in range(1, 8)] + [
 def _tab_deroule():
     w(block(cols(
         steps([
-            "<strong><code>docker compose up -d</code></strong><br>Les quatre conteneurs "
-            "démarrent ensemble. <code>docker ps</code> les affiche : API, MLflow, "
-            "webserver et scheduler Airflow.",
+            "<strong><code>docker compose up -d</code></strong><br>Les huit conteneurs "
+            "démarrent ensemble : API, MLflow, MinIO, Airflow, Prometheus, "
+            "Alertmanager et Grafana.",
             "<strong>Swagger sur <code>:8000/docs</code></strong><br>L’API se documente "
             "seule : les onze champs attendus, leurs types et un exemple pré-rempli.",
             "<strong><code>GET /health</code></strong><br>Le modèle répond avec sa propre "
-            "carte d’identité : pays, horizon, MAE et RMSE embarqués dans le "
-            "<code>.joblib</code>.",
+            "carte d’identité : version, origine (le registre), pays, horizon, MAE et "
+            "RMSE.",
             "<strong><code>POST /predict</code> sans clé → 401</strong><br>La protection "
             "se vérifie en une requête : sans en-tête <code>x-api-key</code>, rien ne "
             "passe.",
@@ -531,14 +533,15 @@ def _tab_deroule():
             "<strong><code>POST /predict</code> avec la clé → 200</strong><br>Sur la "
             "charge utile d’exemple, le modèle renvoie <strong>5 300,66 cas</strong> "
             "à J+7.",
-            "<strong>MLflow sur <code>:5000</code></strong><br>Les runs côte à côte, avec "
-            "leurs neuf paramètres et leurs deux métriques.",
+            "<strong>MLflow sur <code>:5000</code></strong><br>Les runs côte à côte, et "
+            "dans l’onglet Models les versions avec leurs alias <code>candidate</code> "
+            "et <code>production</code>.",
             "<strong>Airflow sur <code>:8080</code> → Trigger DAG</strong><br>"
-            "<code>retrain_covid_model</code> se déclenche à la main ; la tâche passe au "
-            "vert en quelques minutes.",
-            "<strong>Retour sur MLflow</strong><br>Un run de plus est apparu, et le volume "
-            "partagé contient un nouveau modèle. La boucle s’est refermée sans toucher au "
-            "code de l’API.",
+            "<code>retrain_covid_model</code> se déclenche à la main ; ses six tâches "
+            "passent au vert, de l’entraînement à la promotion.",
+            "<strong>Grafana sur <code>:3000</code></strong><br>Après un trafic de "
+            "démonstration et le DAG <code>monitor_covid_model</code>, la dérive "
+            "apparaît sur le tableau de bord et l’alerte dans Alertmanager.",
         ], start=4),
     )))
     w(card("Plan de repli",
@@ -803,7 +806,7 @@ def _tab_reentrainer(S, D):
           f'{num(n - ts)} jours. {verdict}</p>')
 
 
-def s14(S, D):
+def s16(S, D):
     w(rail("direct", "Démonstration", "En direct · laboratoire interactif"))
     w(block(
         _titre("La chaîne en fonctionnement, du démarrage au réentraînement"),
@@ -827,40 +830,44 @@ def s14(S, D):
         _tab_reentrainer(S, D)
 
 
-# ══════════════════════════ 15 · qualité ══════════════════════════
-def s15(S, D):
+# ══════════════════════════ 17 · qualité ══════════════════════════
+def s17(S, D):
     w(rail("qualite", "Qualité", "Tests & conteneurisation"))
     w(block(
         _titre("Ce qui est vérifié, et ce qui ne l’est pas encore"),
         cols(
             stats_row(
-                stat("3 / 3", "Tests pytest réussis", kind="good"),
+                stat("8 / 8", "Tests pytest réussis", kind="good"),
                 stat("0", "Échec"),
                 cols=2)
             + table([
                 ("/health", "200 · modèle chargé"),
                 ("/predict sans clé", "401"),
-                ("/predict avec clé", "200 · prévision"),
+                ("/predict avec clé, avec ou sans date", "200 · prévision"),
+                ("/metrics · /model/reload", "200"),
+                ("Construction des variables", "décalages, cible, lignes incomplètes"),
             ], head=("Test", "Attendu"))
-            + '<p class="small">Les tests s’exécutent contre l’application réelle via le '
-              '<code>TestClient</code> de FastAPI, modèle chargé compris.</p>',
+            + '<p class="small">Les tests de l’API s’exécutent contre l’application '
+              'réelle via le <code>TestClient</code> de FastAPI. Deux tests de plus, sur '
+              'les règles de dérive et de performance, s’exécutent dans l’image Airflow, '
+              'où Evidently est installé.</p>',
             card("Conteneurisation",
-                 '<p class="txt">Trois images (API, MLflow, Airflow) et quatre services '
-                 'orchestrés par un seul <code>docker compose up</code>. Trois volumes '
-                 'assurent la persistance : modèle entraîné, base MLflow, métadonnées '
-                 'Airflow.</p>', kind="plain", icon_name="conteneur")
+                 '<p class="txt">Trois images construites (API, MLflow, Airflow), cinq '
+                 'images publiques et huit services orchestrés par un seul '
+                 '<code>docker compose up</code>. Les volumes assurent la persistance : '
+                 'modèle, base MLflow, métadonnées Airflow, stockage MinIO.</p>',
+                 kind="plain", icon_name="conteneur")
             + card("Angles morts assumés", bullets([
-                "Aucun test unitaire sur le prétraitement, les variables et "
-                "l’entraînement — seule l’API est couverte.",
+                "Aucun test sur le téléchargement ni sur l’entraînement lui-même.",
                 "Pas de test d’intégration bout en bout sur la chaîne de "
-                "réentraînement.",
+                "réentraînement, ni d’intégration continue.",
             ], warm=True), kind="warm"),
         ),
     ))
 
 
-# ══════════════════════════ 16 · limites ══════════════════════════
-def s16(S, D):
+# ══════════════════════════ 18 · limites ══════════════════════════
+def s18(S, D):
     w(rail("limite", "Regard critique", "Limites"))
     w(block(
         _titre("Six limites que nous assumons"),
@@ -877,13 +884,14 @@ def s16(S, D):
                 f"{num(S['mape_nz'], 0)} %.",
             ]),
             steps([
-                "<strong>Le modèle n’est pas versionné.</strong> L’appel au registre "
-                "MLflow est commenté dans le code : impossible de promouvoir ou de "
-                "revenir en arrière proprement.",
+                "<strong>Tout tourne sur une seule machine.</strong> MinIO, MLflow et "
+                "Airflow partagent le même poste : ni sauvegarde distante, ni reprise "
+                "si la machine tombe.",
                 "<strong>Le secret est en clair.</strong> La clé API figure dans "
                 "<code>docker-compose.yml</code> et dans le dépôt.",
-                "<strong>Aucune surveillance en production.</strong> Ni détection de "
-                "dérive des données, ni alerte si la qualité des prévisions se dégrade.",
+                "<strong>Les alertes n’ont pas de destinataire.</strong> Elles sont "
+                "déclenchées, regroupées et routées, mais aucun canal (mail, Slack) "
+                "n’est branché.",
             ], start=3),
         ),
         '<div style="height:.6rem"></div>',
@@ -893,8 +901,8 @@ def s16(S, D):
     ))
 
 
-# ══════════════════════════ 17 · perspectives ══════════════════════════
-def s17(S, D):
+# ══════════════════════════ 19 · perspectives ══════════════════════════
+def s19(S, D):
     w(rail("cap", "Conclusion", "Prochaines étapes"))
     hebdo = round(S["n_total"] / 7) + 3
     w(block(
@@ -914,15 +922,14 @@ def s17(S, D):
             ]),
             '<p class="card-lab" style="color:var(--warm)">Sur l’industrialisation</p>'
             + bullets([
-                "<strong>Activer le registre de modèles MLflow</strong> avec des étapes "
-                "Staging / Production et un retour arrière en une commande.",
-                "<strong>Superviser avec Prometheus et Grafana</strong> : latence et taux "
-                "d’erreur de l’API, MAE glissante recalculée à chaque publication, et une "
-                "alerte dès qu’elle dépasse son seuil.",
-                "<strong>Sortir les secrets du dépôt</strong> et surveiller la dérive des "
-                "données entrantes.",
-                "<strong>Étendre les tests</strong> au prétraitement et à la construction "
-                "des variables, puis les brancher sur une intégration continue.",
+                "<strong>Brancher un canal de notification</strong> sur Alertmanager, "
+                "mail ou Slack.",
+                "<strong>Héberger le stockage et le registre</strong> : un S3 et une base "
+                "MLflow hors du poste, sauvegardés ; pour DVC, seule l’adresse change.",
+                "<strong>Sortir les secrets du dépôt</strong>, dans un coffre ou des "
+                "variables injectées au déploiement.",
+                "<strong>Brancher les tests sur une intégration continue</strong> et "
+                "couvrir la chaîne de réentraînement de bout en bout.",
             ], warm=True),
         ),
         '<div style="height:.4rem"></div>',
@@ -946,10 +953,12 @@ SLIDES = [
     ("Interprétation", "poids", s10),
     ("Architecture MLOps", "conteneur", s11),
     ("Mise en service · API", "api", s12),
-    ("Industrialisation", "cycle", s13),
-    ("Démonstration en direct", "direct", s14),
-    ("Qualité", "qualite", s15),
-    ("Regard critique", "limite", s16),
-    ("Conclusion", "cap", s17),
+    ("Versioning", "cycle", s13),
+    ("Registre de modèles", "cycle", s14),
+    ("Monitoring", "qualite", s15),
+    ("Démonstration en direct", "direct", s16),
+    ("Qualité", "qualite", s17),
+    ("Regard critique", "limite", s18),
+    ("Conclusion", "cap", s19),
 ]
 TOTAL = len(SLIDES)
