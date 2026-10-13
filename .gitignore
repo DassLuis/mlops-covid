@@ -9,7 +9,6 @@ data/processed/*
 mlflow.db
 mlflow_data/
 .pytest_cache/
-presentation/data/owid_raw.parquet
 
 dvc_storage/
 airflow/logs/

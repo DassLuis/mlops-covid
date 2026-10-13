@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements-streamlit.txt .
+
+# Sur un poste dont l'antivirus ou le proxy inspecte le HTTPS, son autorité de
+# certification peut être fournie au build (secret « pip_ca ») ; sinon rien ne change.
+RUN --mount=type=secret,id=pip_ca,mode=0444 \
+    if [ -s /run/secrets/pip_ca ]; then export PIP_CERT=/run/secrets/pip_ca; fi \
+    && pip install --no-cache-dir -r requirements-streamlit.txt
+
+COPY .streamlit/ .streamlit/
+COPY presentation/ presentation/
+
+EXPOSE 8501
+
+CMD ["python", "-m", "streamlit", "run", "presentation/app.py", \
+     "--server.port", "8501", "--server.address", "0.0.0.0", \
+     "--server.headless", "true", "--browser.gatherUsageStats", "false"]

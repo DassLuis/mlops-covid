@@ -5,7 +5,7 @@ from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
 
 
-PROJECT_DIR = "cd /opt/airflow/project"
+TRAINING_URL = "http://training:8000"
 
 default_args = {
     "owner": "mlops-covid",
@@ -13,6 +13,14 @@ default_args = {
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
 }
+
+
+def training_step(name: str, query: str = "") -> str:
+    """Airflow orchestre ; chaque étape s'exécute dans le service d'entraînement."""
+    return (
+        "curl --fail-with-body --silent --show-error --max-time 3600 -X POST "
+        f'-H "x-api-key: $API_KEY" "{TRAINING_URL}/steps/{name}{query}"'
+    )
 
 
 with DAG(
@@ -36,32 +44,31 @@ with DAG(
     # Les étapes sont celles de dvc.yaml : DVC ne rejoue que ce qui a changé
     ingest_data = BashOperator(
         task_id="ingest_data",
-        bash_command=f"{PROJECT_DIR} && dvc repro --single-item --force ingest",
+        bash_command=training_step("ingest"),
     )
 
     prepare_data = BashOperator(
         task_id="prepare_data",
-        bash_command=f"{PROJECT_DIR} && dvc repro --single-item prepare",
+        bash_command=training_step("prepare"),
     )
 
     # Enregistre une nouvelle version « candidate » dans le registre MLflow
     train_model = BashOperator(
         task_id="train_model",
-        bash_command=(
-            f"{PROJECT_DIR} && dvc repro --single-item "
-            "{{ '--force' if params.force_train else '' }} train"
+        bash_command=training_step(
+            "train", "?force={{ 'true' if params.force_train else 'false' }}"
         ),
     )
 
     # Compare le candidat au modèle en production et ne promeut que le meilleur
     promote_model = BashOperator(
         task_id="promote_model",
-        bash_command=f"{PROJECT_DIR} && python src/promote.py",
+        bash_command=training_step("promote"),
     )
 
     version_artifacts = BashOperator(
         task_id="version_artifacts",
-        bash_command=f"{PROJECT_DIR} && dvc push",
+        bash_command=training_step("push"),
     )
 
     reload_api = BashOperator(

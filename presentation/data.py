@@ -1,20 +1,14 @@
-"""Chargement des données figées par build_data.py, et modèle du projet."""
+"""Accès aux données du projet : l'application ne lit aucun fichier, tout passe
+par l'API déployée."""
 
-import json
 import os
-import sys
 
-import joblib
 import pandas as pd
+import requests
 import streamlit as st
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-DATA_DIR = os.path.join(HERE, "data")
-MODEL_PATH = os.path.join(ROOT, "models", "covid_rf_model.joblib")
-
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
 
 FR_MOIS = {
     1: "janvier", 2: "février", 3: "mars", 4: "avril", 5: "mai", 6: "juin",
@@ -36,67 +30,9 @@ class DonneesManquantes(RuntimeError):
     pass
 
 
-def _need(path: str):
-    if not os.path.exists(path):
-        raise DonneesManquantes(
-            "Données absentes. Lancez d'abord :\n\n"
-            "    python presentation/build_data.py"
-        )
-    return path
-
-
-@st.cache_data(show_spinner=False)
-def load_stats() -> dict:
-    with open(_need(os.path.join(DATA_DIR, "stats.json")), encoding="utf-8") as fh:
-        return json.load(fh)
-
-
-@st.cache_data(show_spinner=False)
-def load_serie() -> pd.DataFrame:
-    df = pd.read_parquet(_need(os.path.join(DATA_DIR, "serie.parquet")))
-    df["date"] = pd.to_datetime(df["date"])
-    return df
-
-
-@st.cache_data(show_spinner=False)
-def load_test() -> pd.DataFrame:
-    df = pd.read_parquet(_need(os.path.join(DATA_DIR, "test.parquet")))
-    df["date"] = pd.to_datetime(df["date"])
-    return df
-
-
-@st.cache_data(show_spinner=False)
-def load_complet() -> pd.DataFrame:
-    df = pd.read_parquet(_need(os.path.join(DATA_DIR, "modele_complet.parquet")))
-    df["date"] = pd.to_datetime(df["date"])
-    return df
-
-
-@st.cache_data(show_spinner=False)
-def load_etat_mlops() -> dict:
-    """Derniers résultats écrits par le projet : entraînement, promotion, monitoring.
-
-    Un fichier absent donne None : la page affiche alors la règle sans le chiffre.
-    """
-    fichiers = {
-        "entrainement": ("metrics", "train_metrics.json"),
-        "promotion": ("metrics", "promotion.json"),
-        "monitoring": ("data", "monitoring", "monitoring_summary.json"),
-    }
-    etat = {}
-    for cle, morceaux in fichiers.items():
-        chemin = os.path.join(ROOT, *morceaux)
-        if os.path.exists(chemin):
-            with open(chemin, encoding="utf-8") as fh:
-                etat[cle] = json.load(fh)
-        else:
-            etat[cle] = None
-    return etat
-
-
 def reglages_api() -> tuple:
-    """Adresse et clé de l'API, lues dans le fichier .env du projet : la clé
-    n'est écrite nulle part dans le code."""
+    """Adresse et clé de l'API, lues dans l'environnement ou dans le fichier .env
+    du projet : la clé n'est écrite nulle part dans le code."""
     try:
         from dotenv import load_dotenv
         load_dotenv(os.path.join(ROOT, ".env"))
@@ -105,19 +41,78 @@ def reglages_api() -> tuple:
     return os.getenv("API_URL", "http://localhost:8000"), os.getenv("API_KEY", "")
 
 
-@st.cache_resource(show_spinner=False)
-def load_model():
-    """Charge le modèle réellement livré par le projet (models/*.joblib)."""
-    if not os.path.exists(MODEL_PATH):
+def _api(methode: str, chemin: str, delai: int = 60, **kwargs):
+    url, cle = reglages_api()
+    try:
+        reponse = requests.request(
+            methode, f"{url.rstrip('/')}{chemin}",
+            headers={"x-api-key": cle}, timeout=delai, **kwargs,
+        )
+    except requests.RequestException as exc:
+        raise DonneesManquantes(
+            f"API injoignable sur {url} ({type(exc).__name__}). "
+            "Démarrez la pile avec `docker compose up -d`."
+        ) from exc
+    if reponse.status_code == 401:
+        raise DonneesManquantes(
+            "L'API refuse la clé : vérifiez API_KEY dans le fichier .env."
+        )
+    if reponse.status_code != 200:
+        raise DonneesManquantes(
+            f"L'API répond {reponse.status_code} sur {chemin} : {reponse.text[:200]}"
+        )
+    return reponse.json()
+
+
+def _tableau(chemin: str) -> pd.DataFrame:
+    df = pd.DataFrame(_api("GET", chemin))
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+@st.cache_data(show_spinner=False, ttl=300)
+def load_stats() -> dict:
+    return _api("GET", "/data/stats")
+
+
+@st.cache_data(show_spinner=False, ttl=300)
+def load_serie() -> pd.DataFrame:
+    return _tableau("/data/series")
+
+
+@st.cache_data(show_spinner=False, ttl=300)
+def load_test() -> pd.DataFrame:
+    return _tableau("/data/test")
+
+
+@st.cache_data(show_spinner=False, ttl=60)
+def load_etat_mlops() -> dict:
+    """Derniers résultats du pipeline : entraînement, promotion, monitoring."""
+    return _api("GET", "/mlops/status")
+
+
+@st.cache_data(show_spinner=False, ttl=30)
+def etat_api():
+    """Carte d'identité du modèle servi, ou None si l'API ne répond pas."""
+    try:
+        return _api("GET", "/health", delai=6)
+    except DonneesManquantes:
         return None
-    return joblib.load(MODEL_PATH)
 
 
 def predire(entrees: dict):
-    """Prédiction locale via le modèle du projet. Renvoie None s'il est absent."""
-    paquet = load_model()
-    if paquet is None:
+    """Prévision demandée à l'API, sans journalisation. None si elle ne répond pas."""
+    try:
+        return float(_api("POST", "/simulate", delai=10,
+                          json=entrees)["prediction_new_cases_h_plus_7"])
+    except DonneesManquantes:
         return None
-    features = paquet["features"]
-    X = pd.DataFrame([entrees])[features]
-    return float(paquet["model"].predict(X)[0])
+
+
+def essai_entrainement(n_estimators: int, part: float, profondeur=None) -> dict:
+    """Essai d'entraînement calculé par l'API, avec d'autres réglages."""
+    return _api("POST", "/lab/train", delai=180, json={
+        "n_estimators": n_estimators,
+        "train_share": part,
+        "max_depth": profondeur,
+    })

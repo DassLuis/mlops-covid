@@ -13,5 +13,6 @@ dvc_storage/
 .dvc/tmp/
 .certs/
 data/
-presentation/
+presentation/*.html
+presentation/*.pdf
 *.pdf

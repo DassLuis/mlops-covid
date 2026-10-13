@@ -8,8 +8,8 @@ from airflow.operators.python import BranchPythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 
-PROJECT_DIR = "/opt/airflow/project"
-SUMMARY_PATH = f"{PROJECT_DIR}/data/monitoring/monitoring_summary.json"
+TRAINING_URL = "http://training:8000"
+SUMMARY_PATH = "/opt/airflow/monitoring/monitoring_summary.json"
 
 default_args = {
     "owner": "mlops-covid",
@@ -40,10 +40,14 @@ with DAG(
     tags=["mlops", "covid", "monitoring"],
 ) as dag:
 
-    # Rapports Evidently : dérive des entrées et performance réelle du modèle
+    # Rapports Evidently, produits par le service d'entraînement : dérive des
+    # entrées et performance réelle du modèle
     run_monitoring = BashOperator(
         task_id="run_monitoring",
-        bash_command=f"cd {PROJECT_DIR} && python src/monitor.py",
+        bash_command=(
+            "curl --fail-with-body --silent --show-error --max-time 3600 -X POST "
+            f'-H "x-api-key: $API_KEY" "{TRAINING_URL}/steps/monitor"'
+        ),
     )
 
     check_results = BranchPythonOperator(

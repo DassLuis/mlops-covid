@@ -6,7 +6,7 @@ on:
 
 jobs:
   api:
-    name: API et construction des variables
+    name: API, service d'entraînement et variables
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,9 +35,9 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      # Evidently n'est installé que dans l'environnement d'Airflow
+      # Evidently n'est installé que dans le service d'entraînement
       - name: Installer les dépendances du monitoring
-        run: pip install -r requirements-airflow.txt pytest
+        run: pip install -r requirements-training.txt pytest httpx
 
       - name: Lancer les tests du pipeline
         run: python -m pytest -v tests/test_pipeline.py

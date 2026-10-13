@@ -60,13 +60,13 @@ def schema(p: dict) -> str:
                 f'fill="{p["etiquette"]}" text-anchor="{ancre}">{texte}</text>')
 
     return f"""
-<svg viewBox="0 0 1000 470" role="img" style="width:100%;height:auto;margin:.6rem 0"
- aria-label="Architecture : Airflow rejoue le pipeline DVC, qui télécharge les données
+<svg viewBox="0 0 1000 480" role="img" style="width:100%;height:auto;margin:.6rem 0"
+ aria-label="Architecture : Airflow appelle le service d'entraînement, qui télécharge les données
  OWID, envoie données et modèle dans MinIO et enregistre une nouvelle version dans le
  registre MLflow. L'API FastAPI sert la version en production. Chaque prédiction est
  journalisée ; Evidently y cherche chaque jour une dérive et peut relancer
  l'entraînement. Prometheus collecte les métriques de l'API et transmet ses alertes à
- Alertmanager ; Grafana les affiche.">
+ Alertmanager ; Grafana les affiche. L'application Streamlit passe par l'API.">
 <defs>
   <marker id="fc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
    orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="{p["trait"]}"/></marker>
@@ -80,19 +80,20 @@ def schema(p: dict) -> str:
 </defs>
 
 <!-- enceinte docker compose -->
-<rect x="196" y="8" width="796" height="372" rx="{p["rayon"] and 18}"
+<rect x="196" y="8" width="796" height="390" rx="{p["rayon"] and 18}"
  fill="{p["enceinte_fond"]}" stroke="{p["enceinte_bord"]}" stroke-width="1"
  stroke-dasharray="6 5"/>
 <text x="212" y="30" {police} font-size="11"
- fill="{p["discret"]}" letter-spacing="1.6">DOCKER COMPOSE · 8 SERVICES</text>
+ fill="{p["discret"]}" letter-spacing="1.6">DOCKER COMPOSE · 10 SERVICES</text>
 
 <!-- source externe et client -->
 {boite(0, 150, "OWID · GitHub", "owid-covid-data.csv", "neutre", w=160)}
-{boite(830, 410, "Client · Swagger · curl", "x-api-key", "neutre", w=160, h=48)}
+{boite(830, 424, "Utilisateur", "navigateur", "neutre", w=160, h=48)}
+{boite(830, 326, "Streamlit", ":8501 · interface", "violet", w=160, h=48)}
 
 <!-- colonne orchestration et versioning -->
 {boite(226, 48, "Airflow", "2 DAG · @weekly · @daily", "bleu")}
-{boite(226, 150, "Pipeline DVC", "ingest ▸ prepare ▸ train", "plein")}
+{boite(226, 150, "Service d'entraînement", "DVC : ingest ▸ prepare ▸ train", "plein")}
 {boite(226, 262, "MinIO · S3", "données et modèle versionnés", "chaud")}
 
 <!-- colonne registre et contrôle -->
@@ -109,7 +110,7 @@ def schema(p: dict) -> str:
 {fleche("160,175 222,175")}
 {etiquette(80, 222, "téléchargement du CSV", "middle")}
 {fleche("311,100 311,146")}
-{etiquette(322, 128, "dvc repro")}
+{etiquette(322, 128, "POST /steps")}
 {fleche("311,202 311,258", "trait_chaud")}
 {etiquette(322, 235, "dvc push")}
 {fleche("398,175 462,175", "trait_violet")}
@@ -133,11 +134,10 @@ def schema(p: dict) -> str:
 {fleche("702,287 640,287")}
 {etiquette(671, 279, "alertes", "middle")}
 
-<!-- ═══ client ═══ -->
-{fleche("900,406 900,165 880,165")}
-{fleche("878,188 930,188 930,406", tirets=True)}
-{etiquette(892, 340, "POST /predict", "end")}
-{etiquette(938, 340, "J+7")}
+<!-- ═══ application ═══ -->
+{fleche("910,420 910,378")}
+{fleche("910,322 910,175 880,175")}
+{etiquette(918, 250, "API")}
 </svg>
 """
 

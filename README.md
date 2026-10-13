@@ -30,11 +30,11 @@ Le projet couvre l'ensemble d'une chaîne MLOps :
 | 2 | Versioning des données et des modèles | `dvc.yaml`, `dvc.lock`, MinIO, registre MLflow |
 | 2 | API testée et sécurisée | `tests/`, `api/auth.py` |
 | 3 | Orchestration | `airflow/dags/retrain_covid_model.py` |
-| 3 | Conteneurisation | `docker-compose.yml`, `docker/` |
+| 3 | Microservices et conteneurisation | `docker-compose.yml`, `docker/`, `training/app.py` |
 | 4 | Intégration continue | `.github/workflows/` |
 | 4 | Monitoring des performances | `api/metrics.py`, `monitoring/prometheus/`, `monitoring/grafana/`, `monitoring/alertmanager/` |
 | 4 | Détection de dérive | `src/monitor.py`, `airflow/dags/monitor_covid_model.py` |
-| 5 | Application Streamlit | `presentation/app.py` |
+| 5 | Application Streamlit, par l'API uniquement | `presentation/app.py`, `presentation/data.py`, `api/exploration.py` |
 
 ---
 
@@ -48,6 +48,7 @@ mlops-covid/
 │   └── monitor_covid_model.py    # DAG : dérive et performance, réentraînement
 ├── api/
 │   ├── app.py                    # API FastAPI
+│   ├── exploration.py            # données servies à l'application Streamlit
 │   ├── auth.py                   # clé API
 │   ├── metrics.py                # métriques Prometheus
 │   └── prediction_log.py         # journal des prédictions
@@ -75,13 +76,16 @@ mlops-covid/
 │   ├── monitor.py                # rapports Evidently
 │   └── predict.py
 ├── tests/
+├── training/
+│   └── app.py                    # service d'entraînement, appelé par Airflow
 │
 ├── dvc.yaml                      # pipeline DVC
 ├── dvc.lock                      # empreintes des données, du code et du modèle
 ├── docker-compose.yml
 ├── requirements.txt              # API
 ├── requirements-dev.txt          # poste de développement (API + DVC)
-├── requirements-airflow.txt      # image Airflow (DVC, Evidently)
+├── requirements-training.txt     # service d'entraînement (DVC, Evidently)
+├── requirements-streamlit.txt    # application Streamlit
 └── .env
 ```
 
@@ -149,7 +153,7 @@ Si un port est déjà utilisé sur la machine, il se change sans toucher aux fic
 API_PORT=8010 AIRFLOW_PORT=8081 docker compose up -d
 ```
 
-(variables disponibles : `API_PORT`, `MLFLOW_PORT`, `AIRFLOW_PORT`, `PROMETHEUS_PORT`, `ALERTMANAGER_PORT`, `GRAFANA_PORT`, `MINIO_PORT`, `MINIO_CONSOLE_PORT`)
+(variables disponibles : `API_PORT`, `MLFLOW_PORT`, `AIRFLOW_PORT`, `PROMETHEUS_PORT`, `ALERTMANAGER_PORT`, `GRAFANA_PORT`, `MINIO_PORT`, `MINIO_CONSOLE_PORT`, `STREAMLIT_PORT`)
 
 Pour travailler hors Docker (pipeline DVC, tests) :
 
@@ -163,7 +167,8 @@ pip install -r requirements-dev.txt
 
 | Service | Adresse | Rôle |
 |---|---|---|
-| API FastAPI | http://localhost:8000/docs | prédictions, `/health`, `/metrics` |
+| Application Streamlit | http://localhost:8501 | interface utilisateur, branchée sur l'API |
+| API FastAPI | http://localhost:8000/docs | prédictions, données d'exploration, `/health`, `/metrics` |
 | MLflow | http://localhost:5000 | expériences, registre de modèles, historique du monitoring |
 | Airflow | http://localhost:8080 (admin / admin) | DAG d'entraînement et de monitoring |
 | Prometheus | http://localhost:9090 | métriques et alertes |
@@ -221,6 +226,14 @@ Le champ `date` est facultatif : il indique le jour auquel correspondent les don
 | `POST /predict` | prédiction à J+7 |
 | `POST /model/reload` | recharge le modèle en production du registre |
 | `GET /metrics` | métriques au format Prometheus |
+| `POST /simulate` | prévision « et si », non journalisée |
+| `GET /data/stats`, `/data/series`, `/data/test` | chiffres clés, série des cas, jeu de test avec les prévisions |
+| `POST /lab/train` | essai d'entraînement avec d'autres réglages, sans effet sur le modèle servi |
+| `GET /mlops/status` | derniers résultats d'entraînement, de promotion et de monitoring |
+
+Tous les endpoints sont protégés par la clé, sauf `/health`, `/metrics` et `/docs`.
+
+`/predict` journalise chaque appel pour le suivi de dérive ; `/simulate` ne journalise rien, pour que les essais faits dans l'application ne faussent pas ce suivi.
 
 ---
 
@@ -320,6 +333,8 @@ ingest_data ► prepare_data ► train_model ► promote_model ► version_artif
 | `version_artifacts` | envoie données et modèle vers le stockage MinIO (`dvc push`) |
 | `reload_api` | demande à l'API de recharger le modèle en production |
 
+Airflow n'exécute aucun calcul lui-même : chaque tâche appelle le **service d'entraînement** (`POST http://training:8000/steps/<étape>`), qui lance l'étape dans son propre conteneur et renvoie son résultat. Une étape en échec renvoie une erreur, et la tâche Airflow échoue.
+
 Pour forcer un entraînement sans changement de données : **Trigger DAG w/ config**, paramètre `force_train` à `true`.
 
 L'API charge le modèle qui porte l'alias `production`. Si le registre est injoignable, elle se replie sur le fichier `models/covid_rf_model.joblib` ; `/health` indique toujours la version et l'origine du modèle chargé.
@@ -397,7 +412,9 @@ Les tests vérifient notamment :
 - endpoint `/metrics`
 - rechargement du modèle
 - construction des features (décalages, cible, lignes incomplètes)
-- règles de dérive et de performance (dans l'image Airflow, où Evidently est installé)
+- données d'exploration, simulation non journalisée, essai d'entraînement
+- service d'entraînement : clé exigée, étape inconnue refusée, échec remonté à Airflow
+- règles de dérive et de performance (dans le service d'entraînement, où Evidently est installé)
 
 Les tests n'utilisent ni la vraie clé ni le serveur MLflow. Sur une machine qui n'a que le code, sans le modèle suivi par DVC, ils construisent un petit modèle de remplacement.
 
@@ -409,8 +426,8 @@ Deux workflows GitHub Actions, dans `.github/workflows/` :
 
 | Workflow | Déclenchement | Action |
 |---|---|---|
-| `tests.yml` | chaque push et chaque pull request | lance les tests de l'API, puis ceux du monitoring avec Evidently |
-| `docker.yml` | chaque push sur `main` | construit les images API, MLflow et Airflow, et les publie dans le registre de conteneurs GitHub |
+| `tests.yml` | chaque push et chaque pull request | lance les tests de l'API et du service d'entraînement, puis ceux du monitoring avec Evidently |
+| `docker.yml` | chaque push sur `main` | construit les images API, MLflow, entraînement et Streamlit, et les publie dans le registre de conteneurs GitHub |
 
 Chaque image publiée porte deux étiquettes : `latest` et l'identifiant du commit qui l'a produite.
 
@@ -425,6 +442,8 @@ docker pull ghcr.io/<compte>/mlops-covid-api:latest
 Le projet est découpé en plusieurs services :
 
 - API FastAPI
+- Application Streamlit
+- Service d'entraînement
 - MLflow
 - Airflow Webserver
 - Airflow Scheduler
@@ -447,7 +466,7 @@ docker-compose.yml
                  Données OWID
                       │
                       ▼
-   ┌──────── Pipeline DVC (Airflow) ────────┐
+   ┌── Pipeline DVC (service d'entraînement) ─┐
    │  ingest  ►  prepare  ►  train          │──► versions des données et du modèle (MinIO)
    └────────────────────┬───────────────────┘
                         ▼
@@ -455,7 +474,7 @@ docker-compose.yml
         candidat ──(comparaison)──► production
                         │
                         ▼
-                     FastAPI ──► Prédictions
+                     FastAPI ──► Application Streamlit
                         │
           ┌─────────────┴─────────────┐
           ▼                           ▼
@@ -466,7 +485,7 @@ docker-compose.yml
      Alertmanager                     │
      (alertes)                        │
                                       ▼
-                           Evidently (Airflow, chaque jour)
+                           Evidently (chaque jour, lancé par Airflow)
                            dérive et performance
                                       │
                                       └──► réentraînement si nécessaire
@@ -481,19 +500,18 @@ issues des mêmes données.
 
 ## Application Streamlit
 
-Présentation interactive en 8 sections, thème sombre, avec un simulateur en
-direct.
+Interface en 8 sections, thème sombre, avec un simulateur en direct. Elle ne lit aucun
+fichier : les chiffres, les graphiques et le simulateur passent tous par l'API.
 
-Installation puis lancement :
+Elle démarre avec le reste de la pile (`docker compose up -d`) et s'ouvre sur
+http://localhost:8501. Pour la lancer hors Docker, l'API étant démarrée :
 
 ```bash
 pip install -r requirements-streamlit.txt
-python presentation/build_data.py       # une seule fois : fige les données
-python presentation/build_assets.py     # une seule fois : bannière et fond de page
 streamlit run presentation/app.py
 ```
 
-L'application s'ouvre sur http://localhost:8501
+Elle lit alors l'adresse de l'API (`API_URL`) et la clé (`API_KEY`) dans le fichier `.env`
 
 Navigation par la barre latérale : Introduction, Données & Prétraitement,
 Modèle & Entraînement, Architecture MLOps, Résultats & Analyse, Interprétabilité,
@@ -504,15 +522,13 @@ projection peine.
 Le simulateur propose quatre modes :
 
 - **Curseurs** — les onze variables réglées à la main, prévision recalculée en
-  direct par `models/covid_rf_model.joblib`
+  direct par `POST /simulate`
 - **Rejouer une date** — un jour de publication du jeu de test, ses entrées
   réelles, la prévision et la valeur observée à J+7
 - **API réelle** — vraie requête `POST /predict` avec l'en-tête `x-api-key`,
-  code HTTP et réponse JSON affichés (nécessite les conteneurs démarrés)
+  code HTTP et réponse JSON affichés
 - **Réentraîner** — nombre d'arbres, part d'apprentissage et profondeur
-  réglables, métriques comparées à celles du projet
-
-Les trois premiers modes fonctionnent hors ligne, sans Docker.
+  réglables, essai calculé par `POST /lab/train`, métriques comparées à celles du projet
 
 ### Organisation du code
 
@@ -522,8 +538,7 @@ Les trois premiers modes fonctionnent hors ligne, sans Docker.
 | `presentation/studio_css.py` | thème sombre, animations, composants |
 | `presentation/studio_charts.py` | graphiques Plotly |
 | `presentation/studio_archi.py` | schéma d'architecture (SVG) |
-| `presentation/data.py` | chargement des données figées et du modèle |
-| `presentation/build_data.py` | rejoue le pipeline et fige les résultats |
+| `presentation/data.py` | appels à l'API : données, simulation, essais |
 | `presentation/build_assets.py` | dessine la bannière et le fond de page |
 
 Une **version claire** de la présentation, calée sur la charte du PDF et
@@ -536,8 +551,7 @@ streamlit run presentation/app_clair.py --theme.base light
 ### Dépendances externes
 
 Font Awesome et la police Outfit sont chargées par CDN : prévoyez une connexion
-le jour de la soutenance, ou la mise en cache du navigateur. Tout le reste
-fonctionne hors ligne.
+le jour de la soutenance, ou la mise en cache du navigateur.
 
 Pour remplacer l'illustration animée de la barre latérale par une animation
 Lottie, déposez un fichier `presentation/assets/lottie_sidebar.json` : il sera
@@ -562,7 +576,7 @@ fond_ecran(opacite=0.45)   # 0 = fond éteint, 1 = image en pleine force
 ## Support imprimable
 
 - `presentation/presentation-mlops-covid.html` — à ouvrir dans un navigateur
-- `presentation/presentation-mlops-covid.pdf` — 19 pages au format 16:9
+- `presentation/presentation-mlops-covid.pdf` — 19 pages au format 16:9, dont dix sur la chaîne MLOps, avec des captures réelles des outils (MLflow, Airflow, Grafana, Evidently)
 
 ## Guides de lecture
 
@@ -572,18 +586,17 @@ disponible.
 | Guide | Format | Contenu |
 |---|---|---|
 | `presentation/guide-simple-streamlit.html` · `.pdf` | 10 pages A4 | **Une page par section** : à quoi elle sert, ce qu'on voit à l'écran, la phrase à dire, le chiffre à retenir. Une capture par section. |
-| `presentation/guide-lecture-streamlit.html` · `.pdf` | 30 pages A4 | Version détaillée : lecture graphique par graphique, pièges à éviter, questions du jury. |
+| `presentation/guide-lecture-streamlit.html` · `.pdf` | 29 pages A4 | Version détaillée : lecture graphique par graphique, pièges à éviter, questions du jury. |
 
 Le guide simple se termine par un mémo : les six chiffres qui reviennent et les
 trois questions les plus probables, avec leur réponse en une phrase.
 
 ## Origine des chiffres
 
-Aucune valeur du support n'est saisie à la main. `presentation/build_data.py`
-rejoue le pipeline du projet (`src/preprocess.py`, `src/features.py`, mêmes
-hyperparamètres que `src/train.py`) et fige le résultat dans
-`presentation/data/`. Les métriques obtenues sont identiques à celles des runs
-MLflow : MAE 942,72 et RMSE 4 262,00.
+Aucune valeur n'est saisie à la main. L'API rejoue le pipeline du projet
+(`src/preprocess.py`, `src/features.py`) sur les données brutes et applique le modèle
+qu'elle sert : les chiffres affichés sont ceux du modèle en production. Ils sont
+recalculés quand le modèle ou les données changent.
 
 ---
 

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, mlflow, airflow]
+        image: [api, mlflow, training, streamlit]
     steps:
       - uses: actions/checkout@v4
 

@@ -3,8 +3,8 @@
 Lancement :
     streamlit run presentation/app.py
 
-Les chiffres proviennent de presentation/build_data.py, qui rejoue le pipeline du
-projet. Le simulateur appelle le modèle et l'API réellement livrés.
+L'application ne lit aucun fichier de données : les chiffres, les graphiques et
+le simulateur passent tous par l'API du projet (voir presentation/data.py).
 """
 
 import json
@@ -13,13 +13,10 @@ import re
 import sys
 import time
 
-import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -42,8 +39,8 @@ from studio_css import (  # noqa: E402
 )
 import studio_charts as ch  # noqa: E402
 from data import (  # noqa: E402
-    DonneesManquantes, date_fr, load_complet, load_etat_mlops, load_model, load_serie,
-    load_stats, load_test, predire, reglages_api,
+    DonneesManquantes, date_fr, essai_entrainement, etat_api, load_etat_mlops,
+    load_serie, load_stats, load_test, predire, reglages_api,
 )
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -262,7 +259,6 @@ try:
     S = load_stats()
     SERIE = load_serie()
     TEST = load_test()
-    COMPLET = load_complet()
 except DonneesManquantes as exc:
     st.error(str(exc))
     st.stop()
@@ -507,7 +503,7 @@ if page == "Introduction":
                 ("Horizon", f"J+{S['horizon']}"),
                 ("Modèle", f"RandomForest · {S['n_estimators']} arbres"),
                 ("Variables", f"{len(S['features'])}"),
-                ("Services", "8 conteneurs Docker"),
+                ("Services", "10 conteneurs Docker"),
             ])
             st.markdown("<div style='height:.6rem'></div>", unsafe_allow_html=True)
             pills([("Python 3.11", ""), ("scikit-learn", ""), ("FastAPI", "violet"),
@@ -521,7 +517,7 @@ if page == "Introduction":
     metric_fr(m1, "Jours de données", S["n_total"], "j")
     metric_fr(m2, "Variables construites", len(S["features"]))
     metric_fr(m3, "MAE sur le test", S["mae"], "cas")
-    metric_fr(m4, "Services conteneurisés", 8)
+    metric_fr(m4, "Services conteneurisés", 10)
 
     st.markdown("---")
     st.markdown(
@@ -697,7 +693,7 @@ elif page == "Architecture MLOps":
                                       "Monitoring", "API FastAPI"])
 
         with t1:
-            titre("fa-cubes", "Huit services, trois boucles : entraîner, servir, "
+            titre("fa-cubes", "Dix services, trois boucles : entraîner, servir, "
                   "surveiller", "h3")
             from studio_archi import ARCHI_SVG
             html(ARCHI_SVG)
@@ -833,6 +829,8 @@ elif page == "Architecture MLOps":
                     """
                     - Planifié `@weekly`, à la cadence de publication des données ;
                       déclenchable à la main
+                    - Airflow n'exécute aucun calcul : chaque tâche appelle le
+                      **service d'entraînement**, dans son propre conteneur
                     - `train_model` crée une version `candidate` ; `promote_model`
                       applique la règle ; `reload_api` fait charger la nouvelle
                       production à l'API, sans redémarrage
@@ -1020,13 +1018,14 @@ elif page == "Interprétabilité du Modèle":
 elif page == "Simulateur Interactif":
     titre("fa-flask-vial", "Simulateur de prévision en direct")
 
-    paquet = load_model()
-    if paquet is None:
-        st.warning("Modèle `models/covid_rf_model.joblib` introuvable. "
-                   "Lancez `python src/train.py` pour le régénérer.")
+    sante = etat_api()
+    if sante is None or not sante.get("model_loaded"):
+        st.warning("L'API ne sert aucun modèle pour l'instant. Démarrez la pile avec "
+                   "`docker compose up -d`.")
     else:
-        st.success(f"**Modèle connecté** — RandomForest, {S['n_estimators']} arbres, "
-                   f"horizon J+{S['horizon']}, entraîné sur {num(S['n_train'])} jours.")
+        st.success(f"**API connectée** — modèle version {sante['model_version']}, "
+                   f"{S['n_estimators']} arbres, horizon J+{S['horizon']}, "
+                   f"origine : {sante['model_source']}.")
 
     with card(wow_mode):
         t1, t2, t3, t4 = st.tabs(["Curseurs", "Rejouer une date", "API réelle",
@@ -1186,9 +1185,8 @@ elif page == "Simulateur Interactif":
                     except Exception as exc:  # noqa: BLE001
                         st.error(f"Impossible de joindre {url} — "
                                  f"{type(exc).__name__}.")
-                        note("Démarrez la pile avec <code>docker compose up -d</code>, "
-                             "ou utilisez les onglets Curseurs et Rejouer une date, "
-                             "qui fonctionnent hors ligne.", "red")
+                        note("Démarrez la pile avec <code>docker compose up -d</code> : "
+                             "toute l'application passe par l'API.", "red")
                     else:
                         ok = r.status_code == 200
                         coul = VERT if ok else AMBRE
@@ -1223,8 +1221,8 @@ elif page == "Simulateur Interactif":
                 prof = st.slider("Profondeur maximale", 2, 30, 12, 1, key="rt_prof",
                                  disabled=not borne)
                 lancer = st.button("Lancer l'entraînement", key="rt_go")
-                note("L'entraînement rejoue exactement le pipeline du projet sur les "
-                     "données figées. Le découpage reste chronologique.")
+                note("L'essai est calculé par l'API, avec le pipeline du projet. Le "
+                     "découpage reste chronologique, et le modèle servi ne change pas.")
 
             with d:
                 if not lancer:
@@ -1233,29 +1231,24 @@ elif page == "Simulateur Interactif":
                             f"avec {S['n_estimators']} arbres et 80 % "
                             "d'apprentissage.")
                 else:
-                    n = len(COMPLET)
-                    ts = int(n * part / 100)
-                    X, y = COMPLET[S["features"]], COMPLET["target"]
+                    essai = None
                     with st.status("Entraînement en cours...", expanded=True) as etat:
-                        st.write(f"Apprentissage sur {num(ts)} jours...")
-                        mdl = RandomForestRegressor(
-                            n_estimators=n_est,
-                            max_depth=prof if borne else None,
-                            random_state=S["random_state"], n_jobs=-1)
-                        t0 = time.time()
-                        mdl.fit(X.iloc[:ts], y.iloc[:ts])
-                        st.write("Prédiction sur le jeu de test...")
-                        p = mdl.predict(X.iloc[ts:])
-                        duree = num(time.time() - t0, 1)
-                        etat.update(label=f"Terminé en {duree} s",
-                                    state="complete", expanded=False)
-                    yv = y.iloc[ts:].to_numpy()
-                    essai = {
-                        "mae": float(mean_absolute_error(yv, p)),
-                        "rmse": float(np.sqrt(mean_squared_error(yv, p))),
-                        "r2": float(1 - ((yv - p) ** 2).sum()
-                                    / ((yv - yv.mean()) ** 2).sum()),
-                    }
+                        st.write("Demande envoyée à l'API (POST /lab/train)...")
+                        try:
+                            essai = essai_entrainement(
+                                n_est, part / 100, prof if borne else None)
+                        except DonneesManquantes as exc:
+                            etat.update(label="Échec de l'essai", state="error")
+                            st.error(str(exc))
+                        else:
+                            st.write(f"Apprentissage sur {num(essai['n_train'])} "
+                                     f"jours, test sur {num(essai['n_test'])}.")
+                            etat.update(
+                                label=f"Terminé en "
+                                      f"{num(essai['duration_seconds'], 1)} s",
+                                state="complete", expanded=False)
+                    if essai is None:
+                        st.stop()
                     d_mae = essai["mae"] - S["mae"]
                     a, b, c = st.columns(3)
                     with a:
@@ -1291,7 +1284,7 @@ elif page == "Conclusion":
             with g:
                 titre("fa-vial-circle-check", "Ce qui est vérifié", "h3")
                 a, b = st.columns(2)
-                metric_fr(a, "Tests pytest réussis", "9 / 9")
+                metric_fr(a, "Tests pytest réussis", "25 / 25")
                 metric_fr(b, "Échecs", 0)
                 st.markdown("<div style='height:.7rem'></div>", unsafe_allow_html=True)
                 kv([
@@ -1300,19 +1293,21 @@ elif page == "Conclusion":
                     ("<code>/predict</code> avec clé, avec ou sans date",
                      "200 · prévision"),
                     ("<code>/metrics</code> · <code>/model/reload</code>", "200"),
+                    ("Données d'exploration, simulation, essais", "8 tests"),
+                    ("Service d'entraînement", "6 tests"),
                     ("Construction des variables", "décalages, cible, lignes incomplètes"),
                 ])
                 note("Les tests de l'API s'exécutent contre l'application réelle via le "
-                     "<code>TestClient</code> de FastAPI, modèle chargé compris. Deux "
-                     "tests de plus, sur les règles de dérive et de performance, "
-                     "s'exécutent dans l'image Airflow, où Evidently est installé. GitHub "
-                     "Actions relance l'ensemble à chaque push.")
+                     "<code>TestClient</code> de FastAPI. Deux des 25 tests, sur les règles de "
+                     "dérive et de performance, s'exécutent dans le service "
+                     "d'entraînement, où Evidently est installé. GitHub Actions "
+                     "relance l'ensemble à chaque push.")
                 st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
                 titre("fa-docker", "Conteneurisation", "h3")
                 st.markdown(
-                    "Trois images construites (API, MLflow, Airflow), cinq images "
-                    "publiques (MinIO et son client, Prometheus, Alertmanager, "
-                    "Grafana) et huit "
+                    "Quatre images construites (API, MLflow, entraînement, Streamlit), six "
+                    "images publiques (Airflow, MinIO et son client, Prometheus, "
+                    "Alertmanager, Grafana) et dix "
                     "services orchestrés par un seul `docker compose up`. Les "
                     "volumes assurent la persistance : modèle, base MLflow, "
                     "métadonnées Airflow, stockage MinIO."

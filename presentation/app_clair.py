@@ -3,9 +3,8 @@
 Lancement :
     streamlit run presentation/app.py
 
-Les données affichées sont figées par presentation/build_data.py, qui rejoue le
-pipeline du projet. Le laboratoire de la diapositive 16 appelle, lui, le modèle
-et l'API réellement livrés.
+Version claire de la présentation. Elle ne lit aucun fichier de données : les
+chiffres et le laboratoire de la diapositive 16 passent par l'API du projet.
 """
 
 import os
@@ -18,7 +17,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 from data import (  # noqa: E402
-    DonneesManquantes, load_complet, load_serie, load_stats, load_test,
+    DonneesManquantes, load_serie, load_stats, load_test,
 )
 from theme import CSS, foot, icon, progress  # noqa: E402
 import slides as SL  # noqa: E402
@@ -52,7 +51,7 @@ def aller(n: int) -> None:
 # ─────────────────────────── données ───────────────────────────
 try:
     S = load_stats()
-    D = {"serie": load_serie(), "test": load_test(), "complet": load_complet()}
+    D = {"serie": load_serie(), "test": load_test()}
 except DonneesManquantes as exc:
     st.error(str(exc))
     st.stop()

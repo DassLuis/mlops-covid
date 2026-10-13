@@ -40,7 +40,7 @@ def test_create_features_drops_incomplete_rows():
 
 
 def test_is_drifted_depends_on_the_method():
-    # Evidently n'est installé que dans l'image Airflow, où tourne le monitoring
+    # Evidently n'est installé que dans le service d'entraînement, où tourne le monitoring
     pytest.importorskip("evidently")
     from src.monitor import is_drifted
 

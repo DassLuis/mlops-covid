@@ -11,11 +11,12 @@ import re
 import numpy as np
 import pandas as pd
 import streamlit as st
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 import charts
-from data import date_fr, load_etat_mlops, load_model, predire, reglages_api
+from data import (
+    DonneesManquantes, date_fr, essai_entrainement, load_etat_mlops, predire,
+    reglages_api,
+)
 from studio_archi import ARCHI_SVG_CLAIR
 from theme import (
     ACCENT, ACCENT_DIM, INK2, INK3, WARM, GOOD,
@@ -45,7 +46,7 @@ def s01(S, D):
         stats_row(
             stat(num(S["n_total"]), "Jours de données", "j"),
             stat("11", "Variables construites"),
-            stat("8", "Services conteneurisés"),
+            stat("10", "Services conteneurisés"),
             stat(num(S["mae"], 0), "MAE sur le test", "cas", kind="hi"),
             cols=4,
         ),
@@ -340,7 +341,7 @@ def s10(S, D):
 def s11(S, D):
     w(rail("conteneur", "Architecture", "docker compose"))
     w(block(
-        _titre("Huit services, trois boucles : entraîner, servir, surveiller"),
+        _titre("Dix services, trois boucles : entraîner, servir, surveiller"),
         f'<div style="margin-top:.6rem">{ARCHI_SVG_CLAIR}</div>',
         '<p class="small">Trois exigences, trois réponses : le versioning des données et '
         'des modèles (DVC, MinIO, MLflow), le registre et son cycle de vie (MLflow, '
@@ -517,9 +518,9 @@ FEATURES = [f"lag_{k}" for k in range(1, 8)] + [
 def _tab_deroule():
     w(block(cols(
         steps([
-            "<strong><code>docker compose up -d</code></strong><br>Les huit conteneurs "
-            "démarrent ensemble : API, MLflow, MinIO, Airflow, Prometheus, "
-            "Alertmanager et Grafana.",
+            "<strong><code>docker compose up -d</code></strong><br>Les dix conteneurs "
+            "démarrent ensemble : API, Streamlit, entraînement, MLflow, MinIO, Airflow, "
+            "Prometheus, Alertmanager et Grafana.",
             "<strong>Swagger sur <code>:8000/docs</code></strong><br>L’API se documente "
             "seule : les onze champs attendus, leurs types et un exemple pré-rempli.",
             "<strong><code>GET /health</code></strong><br>Le modèle répond avec sa propre "
@@ -545,9 +546,8 @@ def _tab_deroule():
         ], start=4),
     )))
     w(card("Plan de repli",
-           '<p class="small">Si un service tarde à démarrer, les trois onglets suivants '
-           'rejouent le même récit sans Docker : ils appellent directement le modèle '
-           '<code>models/covid_rf_model.joblib</code> livré par le projet.</p>',
+           '<p class="small">Si un service tarde à démarrer, le support PDF et ses '
+           'captures d’écran déroulent le même récit, sans dépendre de la pile.</p>',
            kind="plain", icon_name="qualite"))
 
 
@@ -612,8 +612,8 @@ def _tab_curseurs(S, D):
     with d:
         if valeur is None:
             st.warning(
-                "Modèle introuvable : `models/covid_rf_model.joblib`. "
-                "Lancez `python src/train.py` pour le régénérer."
+                "L'API ne répond pas : démarrez la pile avec "
+                "`docker compose up -d`."
             )
             return
         w(block(stats_row(
@@ -717,9 +717,8 @@ def _tab_api(S, D):
                                   headers=entetes, timeout=6)
         except Exception as exc:  # noqa: BLE001
             st.error(f"Impossible de joindre {url} — {type(exc).__name__}.")
-            w('<p class="small">Démarrez la pile avec <code>docker compose up -d</code>, '
-              'ou utilisez les onglets « Curseurs » et « Rejouer une date » qui '
-              'fonctionnent hors ligne.</p>')
+            w('<p class="small">Démarrez la pile avec <code>docker compose up -d</code> : '
+              'toute l’application passe par l’API.</p>')
             return
 
         ok = r.status_code == 200
@@ -737,9 +736,6 @@ def _tab_api(S, D):
 
 
 def _tab_reentrainer(S, D):
-    complet = D["complet"]
-    dates = complet["date"]
-
     g, d = st.columns([1, 1.2], gap="large")
     with g:
         w('<p class="stat-l" style="margin:0 0 .4rem">Paramètres de l’essai</p>')
@@ -750,8 +746,8 @@ def _tab_reentrainer(S, D):
         prof = st.slider("Profondeur maximale", 2, 30, 12, 1, key="rt_prof",
                          disabled=not borne)
         lancer = st.button("Lancer l’entraînement", key="rt_go", type="primary")
-        w('<p class="small">L’entraînement rejoue exactement le pipeline du projet sur '
-          'les données figées. Le découpage reste chronologique.</p>')
+        w('<p class="small">L’essai est calculé par l’API, avec le pipeline du projet. '
+          'Le découpage reste chronologique, et le modèle servi ne change pas.</p>')
 
     with d:
         w('<p class="stat-l" style="margin:0 0 .4rem">Résultat</p>')
@@ -763,25 +759,12 @@ def _tab_reentrainer(S, D):
             )
             return
 
-        n = len(complet)
-        ts = int(n * part / 100)
-        X = complet[S["features"]]
-        y = complet["target"]
         with st.spinner("Entraînement en cours…"):
-            mdl = RandomForestRegressor(
-                n_estimators=n_est,
-                max_depth=prof if borne else None,
-                random_state=S["random_state"], n_jobs=-1,
-            )
-            mdl.fit(X.iloc[:ts], y.iloc[:ts])
-            p = mdl.predict(X.iloc[ts:])
-            yv = y.iloc[ts:].to_numpy()
-
-        essai = {
-            "mae": float(mean_absolute_error(yv, p)),
-            "rmse": float(np.sqrt(mean_squared_error(yv, p))),
-            "r2": float(1 - ((yv - p) ** 2).sum() / ((yv - yv.mean()) ** 2).sum()),
-        }
+            try:
+                essai = essai_entrainement(n_est, part / 100, prof if borne else None)
+            except DonneesManquantes as exc:
+                st.error(str(exc))
+                return
         d_mae = essai["mae"] - S["mae"]
 
         identique = abs(d_mae) < 0.5
@@ -802,9 +785,9 @@ def _tab_reentrainer(S, D):
             sens = "descend sous" if d_mae < 0 else "remonte au-dessus de"
             verdict = (f"La MAE {sens} la référence, de "
                        f"<strong>{num(abs(d_mae), 0)}</strong> cas.")
-        w(f'<p class="small">Apprentissage sur {num(ts)} jours '
-          f'(jusqu’au {date_fr(dates.iloc[ts - 1], court=True)}), test sur '
-          f'{num(n - ts)} jours. {verdict}</p>')
+        w(f'<p class="small">Apprentissage sur {num(essai["n_train"])} jours '
+          f'(jusqu’au {date_fr(pd.Timestamp(essai["last_train_date"]), court=True)}), '
+          f'test sur {num(essai["n_test"])} jours. {verdict}</p>')
 
 
 def s16(S, D):
@@ -838,7 +821,7 @@ def s17(S, D):
         _titre("Ce qui est vérifié, et ce qui ne l’est pas encore"),
         cols(
             stats_row(
-                stat("9 / 9", "Tests pytest réussis", kind="good"),
+                stat("25 / 25", "Tests pytest réussis", kind="good"),
                 stat("0", "Échec"),
                 cols=2)
             + table([
@@ -850,12 +833,12 @@ def s17(S, D):
             ], head=("Test", "Attendu"))
             + '<p class="small">Les tests de l’API s’exécutent contre l’application '
               'réelle via le <code>TestClient</code> de FastAPI. Deux tests de plus, sur '
-              'les règles de dérive et de performance, s’exécutent dans l’image Airflow, '
+              'les règles de dérive et de performance, s’exécutent dans le service d’entraînement, '
               'où Evidently est installé. GitHub Actions relance l’ensemble à chaque '
               'push.</p>',
             card("Conteneurisation",
-                 '<p class="txt">Trois images construites (API, MLflow, Airflow), cinq '
-                 'images publiques et huit services orchestrés par un seul '
+                 '<p class="txt">Quatre images construites (API, MLflow, entraînement, Streamlit), six '
+                 'images publiques et dix services orchestrés par un seul '
                  '<code>docker compose up</code>. Les volumes assurent la persistance : '
                  'modèle, base MLflow, métadonnées Airflow, stockage MinIO.</p>',
                  kind="plain", icon_name="conteneur")
