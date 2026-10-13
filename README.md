@@ -495,8 +495,8 @@ docker-compose.yml
 
 # Présentation du projet
 
-Le dossier `presentation/` contient le support de soutenance, sous trois formes
-issues des mêmes données.
+Le dossier `presentation/` contient l'application Streamlit et le diaporama de
+soutenance.
 
 ## Application Streamlit
 
@@ -577,19 +577,6 @@ fond_ecran(opacite=0.45)   # 0 = fond éteint, 1 = image en pleine force
 
 - `presentation/presentation-mlops-covid.html` — à ouvrir dans un navigateur
 - `presentation/presentation-mlops-covid.pdf` — 19 pages au format 16:9, dont dix sur la chaîne MLOps, avec des captures réelles des outils (MLflow, Airflow, Grafana, Evidently)
-
-## Guides de lecture
-
-Deux guides accompagnent l'application Streamlit, au choix selon le temps
-disponible.
-
-| Guide | Format | Contenu |
-|---|---|---|
-| `presentation/guide-simple-streamlit.html` · `.pdf` | 10 pages A4 | **Une page par section** : à quoi elle sert, ce qu'on voit à l'écran, la phrase à dire, le chiffre à retenir. Une capture par section. |
-| `presentation/guide-lecture-streamlit.html` · `.pdf` | 29 pages A4 | Version détaillée : lecture graphique par graphique, pièges à éviter, questions du jury. |
-
-Le guide simple se termine par un mémo : les six chiffres qui reviennent et les
-trois questions les plus probables, avec leur réponse en une phrase.
 
 ## Origine des chiffres
 
