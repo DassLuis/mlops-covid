@@ -1302,7 +1302,7 @@ elif page == "Conclusion":
                      "dérive et de performance, s'exécutent dans le service "
                      "d'entraînement, où Evidently est installé. GitHub Actions "
                      "relance l'ensemble à chaque push.")
-                st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
+            with d:
                 titre("fa-docker", "Conteneurisation", "h3")
                 st.markdown(
                     "Quatre images construites (API, MLflow, entraînement, Streamlit), six "
@@ -1312,14 +1312,18 @@ elif page == "Conclusion":
                     "volumes assurent la persistance : modèle, base MLflow, "
                     "métadonnées Airflow, stockage MinIO."
                 )
-            with d:
-                st.plotly_chart(ch.radar_projet(S), use_container_width=True,
-                                config={"displayModeBar": False})
-                note("Lecture honnête du projet : l'infrastructure est solide, la "
-                     "couverture de tests et la qualité du signal le sont moins. "
-                     "<b>Ces six notes sur 5 sont une appréciation argumentée, pas "
-                     "une mesure calculée</b> — contrairement à tout le reste de "
-                     "l'application.", "amber")
+                st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
+                titre("fa-code-compare", "Intégration continue", "h3")
+                st.markdown(
+                    """
+                    - À chaque push, GitHub Actions lance les 25 tests
+                    - À chaque push sur `main`, les quatre images sont reconstruites
+                      et publiées dans le registre de conteneurs GitHub
+                    """
+                )
+                note("Angles morts assumés : aucun test sur le téléchargement ni sur "
+                     "l'entraînement lui-même, et pas de test de bout en bout sur la "
+                     "chaîne de réentraînement.", "amber")
 
         with t2:
             titre("fa-triangle-exclamation", "Six limites que nous assumons", "h3")

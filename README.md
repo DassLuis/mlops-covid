@@ -541,13 +541,6 @@ Le simulateur propose quatre modes :
 | `presentation/data.py` | appels à l'API : données, simulation, essais |
 | `presentation/build_assets.py` | dessine la bannière et le fond de page |
 
-Une **version claire** de la présentation, calée sur la charte du PDF et
-découpée en 19 diapositives, reste disponible :
-
-```bash
-streamlit run presentation/app_clair.py --theme.base light
-```
-
 ### Dépendances externes
 
 Font Awesome et la police Outfit sont chargées par CDN : prévoyez une connexion

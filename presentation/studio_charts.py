@@ -265,26 +265,3 @@ def comparaison_metriques(reference: dict, essai: dict) -> go.Figure:
     fig.update_layout(**_base(320, legend=True), barmode="group", bargap=0.45)
     fig.update_yaxes(range=[0, max(reference["rmse"], essai["rmse"]) * 1.25])
     return _axes(fig, "cas")
-
-
-def radar_projet(stats: dict) -> go.Figure:
-    """Signature du projet : où la chaîne est solide, où elle l'est moins."""
-    axes = ["Reproductibilité", "Conteneurisation", "Traçabilité",
-            "Automatisation", "Tests", "Qualité du signal"]
-    notes = [5, 5, 4, 4, 2, 2]
-    fig = go.Figure(go.Scatterpolar(
-        r=notes + [notes[0]], theta=axes + [axes[0]], fill="toself",
-        fillcolor="rgba(56,189,248,0.16)",
-        line=dict(color=CYAN, width=2),
-        marker=dict(color=CYAN, size=7),
-        hovertemplate="%{theta}<br><b>%{r}</b> / 5<extra></extra>",
-    ))
-    fig.update_layout(**_base(380))
-    fig.update_layout(polar=dict(
-        bgcolor="rgba(0,0,0,0)",
-        radialaxis=dict(visible=True, range=[0, 5], gridcolor=GRILLE,
-                        tickfont=dict(size=10, color=ARDOISE_2), linecolor=GRILLE),
-        angularaxis=dict(gridcolor=GRILLE, linecolor=LIGNE,
-                         tickfont=dict(size=12, color=ARDOISE)),
-    ))
-    return fig
