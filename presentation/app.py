@@ -746,7 +746,7 @@ elif page == "Architecture MLOps":
                 st.markdown("**Réponse**")
                 st.code('200 OK\n\n'
                         '{ "prediction_new_cases_h_plus_7": 5300.66,\n'
-                        '  "model_version": "4" }',
+                        '  "model_version": "5" }',
                         language="json")
 
         # ----- versioning : DVC + MLflow -----

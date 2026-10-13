@@ -1,9 +1,9 @@
 {
-  "candidate_version": "4",
+  "candidate_version": "5",
   "candidate_mae": 942.7171942446043,
   "previous_production_version": "4",
   "previous_production_mae": 942.7171942446043,
-  "promoted": false,
-  "reason": "le candidat est déjà en production",
-  "production_version": "4"
+  "promoted": true,
+  "reason": "MAE du candidat inférieure ou égale à celle de la production",
+  "production_version": "5"
 }

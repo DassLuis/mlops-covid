@@ -4,6 +4,6 @@
   "train_rows": 1109,
   "test_rows": 278,
   "data_md5": "d7bac4c8f0bcb088aabe234fbbdb4609",
-  "mlflow_run_id": "b0eb5ae8db134b2ea2ef47ca8dde975b",
-  "model_version": "4"
+  "mlflow_run_id": "51437571920c48e2b1a41114f8a7cca1",
+  "model_version": "5"
 }

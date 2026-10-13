@@ -387,7 +387,7 @@ def s12(S, D):
             '<div class="code" style="border-left-color:var(--warm)">200 OK<br><br>'
             '{ <span class="s">"prediction_new_cases_h_plus_7"</span>: 5300.66,<br>'
             '&nbsp;&nbsp;<span class="s">"model_version"</span>: '
-            '<span class="s">"4"</span> }</div>',
+            '<span class="s">"5"</span> }</div>',
         ),
     ))
 
