@@ -34,7 +34,12 @@ def main():
     period = df.iloc[:train_size] if args.scenario == "normal" else df.iloc[train_size:]
     sample = period.sample(n=min(args.n, len(period)), random_state=RANDOM_STATE)
 
-    headers = {"x-api-key": os.getenv("API_KEY", "mlops-covid-secret-key")}
+    api_key = os.getenv("API_KEY")
+
+    if not api_key:
+        sys.exit("API_KEY n'est pas définie : la renseigner dans le fichier .env.")
+
+    headers = {"x-api-key": api_key}
     errors = 0
 
     for _, row in sample.iterrows():

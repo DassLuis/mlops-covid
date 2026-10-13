@@ -94,6 +94,17 @@ def load_etat_mlops() -> dict:
     return etat
 
 
+def reglages_api() -> tuple:
+    """Adresse et clé de l'API, lues dans le fichier .env du projet : la clé
+    n'est écrite nulle part dans le code."""
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(ROOT, ".env"))
+    except ImportError:
+        pass
+    return os.getenv("API_URL", "http://localhost:8000"), os.getenv("API_KEY", "")
+
+
 @st.cache_resource(show_spinner=False)
 def load_model():
     """Charge le modèle réellement livré par le projet (models/*.joblib)."""

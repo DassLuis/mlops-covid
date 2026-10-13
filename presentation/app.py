@@ -43,7 +43,7 @@ from studio_css import (  # noqa: E402
 import studio_charts as ch  # noqa: E402
 from data import (  # noqa: E402
     DonneesManquantes, date_fr, load_complet, load_etat_mlops, load_model, load_serie,
-    load_stats, load_test, predire,
+    load_stats, load_test, predire, reglages_api,
 )
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -736,7 +736,7 @@ elif page == "Architecture MLOps":
                 st.markdown("**Requête**")
                 st.code(
                     'POST /predict\n'
-                    'x-api-key: mlops-covid-secret-key\n\n'
+                    'x-api-key: <votre clé>\n\n'
                     '{\n'
                     '  "lag_1": 1200, ... "lag_7": 1500,\n'
                     '  "rolling_mean_7": 1300,\n'
@@ -1151,10 +1151,10 @@ elif page == "Simulateur Interactif":
                 "stringency_index": 45.5,
             }
             with g:
-                url = st.text_input("URL du service", "http://localhost:8000",
-                                    key="api_url")
-                cle = st.text_input("Clé API (en-tête x-api-key)",
-                                    "mlops-covid-secret-key", key="api_key")
+                url_defaut, cle_defaut = reglages_api()
+                url = st.text_input("URL du service", url_defaut, key="api_url")
+                cle = st.text_input("Clé API (en-tête x-api-key)", cle_defaut,
+                                    type="password", key="api_key")
                 envoyer_cle = st.checkbox("Envoyer l'en-tête x-api-key", value=True,
                                           key="api_send_key")
                 note("Décochez la case pour démontrer le refus : l'API doit "
@@ -1291,12 +1291,12 @@ elif page == "Conclusion":
             with g:
                 titre("fa-vial-circle-check", "Ce qui est vérifié", "h3")
                 a, b = st.columns(2)
-                metric_fr(a, "Tests pytest réussis", "8 / 8")
+                metric_fr(a, "Tests pytest réussis", "9 / 9")
                 metric_fr(b, "Échecs", 0)
                 st.markdown("<div style='height:.7rem'></div>", unsafe_allow_html=True)
                 kv([
                     ("<code>/health</code>", "200 · modèle chargé"),
-                    ("<code>/predict</code> sans clé", "401"),
+                    ("<code>/predict</code> sans clé, ou avec une mauvaise clé", "401"),
                     ("<code>/predict</code> avec clé, avec ou sans date",
                      "200 · prévision"),
                     ("<code>/metrics</code> · <code>/model/reload</code>", "200"),
@@ -1305,7 +1305,8 @@ elif page == "Conclusion":
                 note("Les tests de l'API s'exécutent contre l'application réelle via le "
                      "<code>TestClient</code> de FastAPI, modèle chargé compris. Deux "
                      "tests de plus, sur les règles de dérive et de performance, "
-                     "s'exécutent dans l'image Airflow, où Evidently est installé.")
+                     "s'exécutent dans l'image Airflow, où Evidently est installé. GitHub "
+                     "Actions relance l'ensemble à chaque push.")
                 st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
                 titre("fa-docker", "Conteneurisation", "h3")
                 st.markdown(
@@ -1342,9 +1343,9 @@ elif page == "Conclusion":
             finding(l4, "fa-server", AMBRE, "04 · Tout sur une seule machine",
                     "MinIO, MLflow et Airflow tournent sur le même poste : ni "
                     "sauvegarde distante, ni reprise si la machine tombe.")
-            finding(l5, "fa-key", ROUGE, "05 · Secret en clair",
-                    "La clé API figure dans <code>docker-compose.yml</code> et dans le "
-                    "dépôt.")
+            finding(l5, "fa-key", AMBRE, "05 · Authentification minimale",
+                    "Une seule clé, partagée par tous les clients, sans expiration : "
+                    "impossible de savoir qui appelle, ni de retirer un accès.")
             finding(l6, "fa-bell-slash", AMBRE, "06 · Alertes sans destinataire",
                     "Les alertes sont déclenchées, regroupées et routées, mais aucun "
                     "canal (mail, Slack) n'est branché : il faut aller les lire.")
@@ -1380,10 +1381,10 @@ elif page == "Conclusion":
                     - **Héberger le stockage et le registre** : un S3 et une base
                       MLflow hors du poste, sauvegardés ; pour DVC, seule l'adresse
                       change
-                    - **Sortir les secrets du dépôt**, dans un coffre ou des
-                      variables d'environnement injectées au déploiement
-                    - **Brancher les tests sur une intégration continue** et couvrir
-                      la chaîne de réentraînement de bout en bout
+                    - **Renforcer l'authentification** : un jeton par client, à durée
+                      limitée (OAuth2 et JWT)
+                    - **Prolonger l'intégration continue** jusqu'au déploiement, et
+                      couvrir la chaîne de réentraînement par un test de bout en bout
                     """
                 )
             st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)

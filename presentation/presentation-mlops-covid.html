@@ -808,7 +808,7 @@ a{ color:var(--accent-dim); }
         <div>
           <p class="card-lab" style="color:var(--ink-3)">Requête</p>
           <pre class="code">POST /predict
-x-api-key: mlops-covid-secret-key
+x-api-key: &lt;votre clé&gt;
 
 {
   <span class="s">"lag_1"</span>: 1200,  <span class="c">… "lag_7"</span>: 1500,
@@ -1037,7 +1037,7 @@ x-api-key: mlops-covid-secret-key
       <div style="display:flex; flex-direction:column; gap:1.6cqi">
         <div class="stats" style="grid-template-columns:1fr 1fr">
           <div class="stat" style="background:var(--good-bg)">
-            <div class="stat-val" style="color:var(--good)">8 / 8</div>
+            <div class="stat-val" style="color:var(--good)">9 / 9</div>
             <div class="stat-lab">Tests pytest réussis</div></div>
           <div class="stat"><div class="stat-val">0</div>
             <div class="stat-lab">Échec</div></div>
@@ -1045,14 +1045,15 @@ x-api-key: mlops-covid-secret-key
         <table class="t">
           <tr><th style="width:58%">Test</th><th>Attendu</th></tr>
           <tr><td class="k">/health</td><td>200 · modèle chargé</td></tr>
-          <tr><td class="k">/predict sans clé</td><td>401</td></tr>
+          <tr><td class="k">/predict sans clé, ou mauvaise clé</td><td>401</td></tr>
           <tr><td class="k">/predict avec clé, avec ou sans date</td><td>200 · prévision</td></tr>
           <tr><td class="k">/metrics · /model/reload</td><td>200</td></tr>
           <tr><td class="k">Construction des variables</td><td>décalages, cible, lignes incomplètes</td></tr>
         </table>
         <p class="small">Les tests de l’API s’exécutent contre l’application réelle via le
           <span class="mono">TestClient</span> de FastAPI. Deux tests de plus, sur les règles de dérive et de
-          performance, s’exécutent dans l’image Airflow, où Evidently est installé.</p>
+          performance, s’exécutent dans l’image Airflow, où Evidently est installé. GitHub
+          Actions relance l’ensemble à chaque push.</p>
       </div>
 
       <div style="display:flex; flex-direction:column; gap:1.6cqi">
@@ -1067,8 +1068,8 @@ x-api-key: mlops-covid-secret-key
           <p class="card-lab">Angles morts assumés</p>
           <ul class="list warm" style="gap:.8cqi">
             <li>Aucun test sur le téléchargement ni sur l’entraînement lui-même.</li>
-            <li>Pas de test d’intégration bout en bout sur la chaîne de réentraînement, ni
-              d’intégration continue.</li>
+            <li>Pas de test d’intégration bout en bout sur la chaîne de
+              réentraînement.</li>
           </ul>
         </div>
       </div>
@@ -1102,8 +1103,8 @@ x-api-key: mlops-covid-secret-key
         <li><strong>Tout tourne sur une seule machine.</strong> MinIO, MLflow et Airflow
           partagent le même poste : ni sauvegarde distante, ni reprise si la machine
           tombe.</li>
-        <li><strong>Le secret est en clair.</strong> La clé API figure dans
-          <span class="mono">docker-compose.yml</span> et dans le dépôt.</li>
+        <li><strong>L’authentification est minimale.</strong> Une seule clé, partagée par
+          tous les clients, sans expiration.</li>
         <li><strong>Les alertes n’ont pas de destinataire.</strong> Elles sont déclenchées,
           regroupées et routées, mais aucun canal (mail, Slack) n’est branché.</li>
       </ol>
@@ -1150,10 +1151,10 @@ x-api-key: mlops-covid-secret-key
             Slack.</li>
           <li><strong>Héberger le stockage et le registre</strong> : un S3 et une base MLflow
             hors du poste, sauvegardés ; pour DVC, seule l’adresse change.</li>
-          <li><strong>Sortir les secrets du dépôt</strong>, dans un coffre ou des variables
-            injectées au déploiement.</li>
-          <li><strong>Brancher les tests sur une intégration continue</strong> et couvrir la
-            chaîne de réentraînement de bout en bout.</li>
+          <li><strong>Renforcer l’authentification</strong> : un jeton par client, à durée
+            limitée (OAuth2 et JWT).</li>
+          <li><strong>Prolonger l’intégration continue</strong> jusqu’au déploiement, et
+            couvrir la chaîne de réentraînement par un test de bout en bout.</li>
         </ul>
       </div>
     </div>

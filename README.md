@@ -17,6 +17,24 @@ Le projet couvre l'ensemble d'une chaîne MLOps :
 - Orchestration avec Apache Airflow
 - Conteneurisation avec Docker
 - Tests unitaires avec Pytest
+- **Intégration continue** avec GitHub Actions : tests, construction et publication des images
+
+## Correspondance avec le cahier des charges
+
+| Phase | Attendu | Où le trouver |
+|---|---|---|
+| 1 | Collecte, nettoyage, variables | `src/ingest.py`, `src/preprocess.py`, `src/features.py` |
+| 1 | Modèle de base et métriques | `src/train.py`, `metrics/train_metrics.json` |
+| 1 | API d'inférence | `api/app.py`, Swagger sur `/docs` |
+| 2 | Suivi des expériences | MLflow, expérience `covid_prediction_experiment` |
+| 2 | Versioning des données et des modèles | `dvc.yaml`, `dvc.lock`, MinIO, registre MLflow |
+| 2 | API testée et sécurisée | `tests/`, `api/auth.py` |
+| 3 | Orchestration | `airflow/dags/retrain_covid_model.py` |
+| 3 | Conteneurisation | `docker-compose.yml`, `docker/` |
+| 4 | Intégration continue | `.github/workflows/` |
+| 4 | Monitoring des performances | `api/metrics.py`, `monitoring/prometheus/`, `monitoring/grafana/`, `monitoring/alertmanager/` |
+| 4 | Détection de dérive | `src/monitor.py`, `airflow/dags/monitor_covid_model.py` |
+| 5 | Application Streamlit | `presentation/app.py` |
 
 ---
 
@@ -115,7 +133,7 @@ Métriques utilisées :
 
 Cloner le projet puis se placer dans son dossier.
 
-Copier `.env.example` en `.env` et y renseigner la clé API.
+Copier `.env.example` en `.env` et y renseigner une clé API de son choix. Sans clé, l'API refuse de démarrer.
 
 Lancer ensuite :
 
@@ -159,11 +177,13 @@ pip install -r requirements-dev.txt
 
 Les endpoints `/predict` et `/model/reload` sont protégés par une clé API.
 
-Ajouter l'en-tête suivant :
+La clé n'est écrite nulle part dans le dépôt : elle est lue dans la variable `API_KEY` du fichier `.env`, qui n'est pas versionné. Ajouter l'en-tête suivant, avec sa propre clé :
 
 ```
-x-api-key: mlops-covid-secret-key
+x-api-key: <valeur de API_KEY>
 ```
+
+Une clé absente ou incorrecte reçoit un `401`.
 
 ---
 
@@ -174,7 +194,7 @@ Depuis Swagger ou avec curl :
 ```bash
 curl -X POST "http://localhost:8000/predict" \
 -H "Content-Type: application/json" \
--H "x-api-key: mlops-covid-secret-key" \
+-H "x-api-key: $API_KEY" \
 -d '{
   "lag_1":1200,
   "lag_2":1100,
@@ -372,12 +392,31 @@ python -m pytest -v
 Les tests vérifient notamment :
 
 - endpoint `/health`
-- authentification de l'API
+- authentification de l'API : clé absente, clé incorrecte, clé valide
 - endpoint `/predict`, avec et sans date
 - endpoint `/metrics`
 - rechargement du modèle
 - construction des features (décalages, cible, lignes incomplètes)
 - règles de dérive et de performance (dans l'image Airflow, où Evidently est installé)
+
+Les tests n'utilisent ni la vraie clé ni le serveur MLflow. Sur une machine qui n'a que le code, sans le modèle suivi par DVC, ils construisent un petit modèle de remplacement.
+
+---
+
+# Intégration continue
+
+Deux workflows GitHub Actions, dans `.github/workflows/` :
+
+| Workflow | Déclenchement | Action |
+|---|---|---|
+| `tests.yml` | chaque push et chaque pull request | lance les tests de l'API, puis ceux du monitoring avec Evidently |
+| `docker.yml` | chaque push sur `main` | construit les images API, MLflow et Airflow, et les publie dans le registre de conteneurs GitHub |
+
+Chaque image publiée porte deux étiquettes : `latest` et l'identifiant du commit qui l'a produite.
+
+```bash
+docker pull ghcr.io/<compte>/mlops-covid-api:latest
+```
 
 ---
 
@@ -552,6 +591,6 @@ MLflow : MAE 942,72 et RMSE 4 262,00.
 
 Projet réalisé par
 
-**Saadia Szapiro**
+**Luvengani Dass** et **Saadia Szapiro**
 
 dans le cadre d'un projet pédagogique MLOps.

@@ -7,7 +7,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     environment:
-      - API_KEY=${API_KEY:-mlops-covid-secret-key}
+      - API_KEY=${API_KEY:?Renseigner API_KEY dans le fichier .env}
       # Le modèle servi est celui qui porte l'alias "production" dans le registre
       - MODEL_SOURCE=registry
       - MLFLOW_TRACKING_URI=http://mlflow:5000
@@ -78,7 +78,7 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - API_KEY=${API_KEY:-mlops-covid-secret-key}
+      - API_KEY=${API_KEY:?Renseigner API_KEY dans le fichier .env}
       - AWS_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -115,7 +115,7 @@ services:
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - API_KEY=${API_KEY:-mlops-covid-secret-key}
+      - API_KEY=${API_KEY:?Renseigner API_KEY dans le fichier .env}
       - AWS_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}

@@ -15,7 +15,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 import charts
-from data import date_fr, load_etat_mlops, load_model, predire
+from data import date_fr, load_etat_mlops, load_model, predire, reglages_api
 from studio_archi import ARCHI_SVG_CLAIR
 from theme import (
     ACCENT, ACCENT_DIM, INK2, INK3, WARM, GOOD,
@@ -373,7 +373,7 @@ def s12(S, D):
             ]),
             '<p class="stat-l" style="margin:0 0 .4rem">Requête</p>'
             '<div class="code">POST /predict<br>'
-            'x-api-key: mlops-covid-secret-key<br><br>{<br>'
+            'x-api-key: &lt;votre clé&gt;<br><br>{<br>'
             '&nbsp;&nbsp;<span class="s">"lag_1"</span>: 1200, '
             '<span class="c">… "lag_7"</span>: 1500,<br>'
             '&nbsp;&nbsp;<span class="s">"rolling_mean_7"</span>: 1300,<br>'
@@ -670,9 +670,10 @@ def _tab_api(S, D):
     g, d = st.columns([1, 1.2], gap="large")
     with g:
         w('<p class="stat-l" style="margin:0 0 .4rem">Cible de la requête</p>')
-        url = st.text_input("URL de l’API", "http://localhost:8000", key="api_url",
+        url_defaut, cle_defaut = reglages_api()
+        url = st.text_input("URL de l’API", url_defaut, key="api_url",
                             label_visibility="collapsed")
-        cle = st.text_input("Clé API (en-tête x-api-key)", "mlops-covid-secret-key",
+        cle = st.text_input("Clé API (en-tête x-api-key)", cle_defaut, type="password",
                             key="api_key")
         envoyer_cle = st.checkbox("Envoyer l’en-tête x-api-key", value=True,
                                   key="api_send_key")
@@ -837,12 +838,12 @@ def s17(S, D):
         _titre("Ce qui est vérifié, et ce qui ne l’est pas encore"),
         cols(
             stats_row(
-                stat("8 / 8", "Tests pytest réussis", kind="good"),
+                stat("9 / 9", "Tests pytest réussis", kind="good"),
                 stat("0", "Échec"),
                 cols=2)
             + table([
                 ("/health", "200 · modèle chargé"),
-                ("/predict sans clé", "401"),
+                ("/predict sans clé, ou avec une mauvaise clé", "401"),
                 ("/predict avec clé, avec ou sans date", "200 · prévision"),
                 ("/metrics · /model/reload", "200"),
                 ("Construction des variables", "décalages, cible, lignes incomplètes"),
@@ -850,7 +851,8 @@ def s17(S, D):
             + '<p class="small">Les tests de l’API s’exécutent contre l’application '
               'réelle via le <code>TestClient</code> de FastAPI. Deux tests de plus, sur '
               'les règles de dérive et de performance, s’exécutent dans l’image Airflow, '
-              'où Evidently est installé.</p>',
+              'où Evidently est installé. GitHub Actions relance l’ensemble à chaque '
+              'push.</p>',
             card("Conteneurisation",
                  '<p class="txt">Trois images construites (API, MLflow, Airflow), cinq '
                  'images publiques et huit services orchestrés par un seul '
@@ -860,7 +862,7 @@ def s17(S, D):
             + card("Angles morts assumés", bullets([
                 "Aucun test sur le téléchargement ni sur l’entraînement lui-même.",
                 "Pas de test d’intégration bout en bout sur la chaîne de "
-                "réentraînement, ni d’intégration continue.",
+                "réentraînement.",
             ], warm=True), kind="warm"),
         ),
     ))
@@ -887,8 +889,8 @@ def s18(S, D):
                 "<strong>Tout tourne sur une seule machine.</strong> MinIO, MLflow et "
                 "Airflow partagent le même poste : ni sauvegarde distante, ni reprise "
                 "si la machine tombe.",
-                "<strong>Le secret est en clair.</strong> La clé API figure dans "
-                "<code>docker-compose.yml</code> et dans le dépôt.",
+                "<strong>L’authentification est minimale.</strong> Une seule clé, partagée "
+                "par tous les clients, sans expiration.",
                 "<strong>Les alertes n’ont pas de destinataire.</strong> Elles sont "
                 "déclenchées, regroupées et routées, mais aucun canal (mail, Slack) "
                 "n’est branché.",
@@ -926,10 +928,10 @@ def s19(S, D):
                 "mail ou Slack.",
                 "<strong>Héberger le stockage et le registre</strong> : un S3 et une base "
                 "MLflow hors du poste, sauvegardés ; pour DVC, seule l’adresse change.",
-                "<strong>Sortir les secrets du dépôt</strong>, dans un coffre ou des "
-                "variables injectées au déploiement.",
-                "<strong>Brancher les tests sur une intégration continue</strong> et "
-                "couvrir la chaîne de réentraînement de bout en bout.",
+                "<strong>Renforcer l’authentification</strong> : un jeton par client, à "
+                "durée limitée (OAuth2 et JWT).",
+                "<strong>Prolonger l’intégration continue</strong> jusqu’au déploiement, "
+                "et couvrir la chaîne de réentraînement par un test de bout en bout.",
             ], warm=True),
         ),
         '<div style="height:.4rem"></div>',

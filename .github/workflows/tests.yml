@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api:
+    name: API et construction des variables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances de l'API
+        run: pip install -r requirements.txt
+
+      # Le modèle est suivi par DVC : tests/conftest.py en construit un de
+      # remplacement quand le fichier est absent.
+      - name: Lancer les tests
+        run: python -m pytest -v
+
+  monitoring:
+    name: Règles de dérive et de performance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Evidently n'est installé que dans l'environnement d'Airflow
+      - name: Installer les dépendances du monitoring
+        run: pip install -r requirements-airflow.txt pytest
+
+      - name: Lancer les tests du pipeline
+        run: python -m pytest -v tests/test_pipeline.py
