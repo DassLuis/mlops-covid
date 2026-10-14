@@ -39,8 +39,9 @@ from studio_css import (  # noqa: E402
 )
 import studio_charts as ch  # noqa: E402
 from data import (  # noqa: E402
-    DonneesManquantes, date_fr, essai_entrainement, etat_api, load_etat_mlops,
-    load_serie, load_stats, load_test, predire, reglages_api,
+    DonneesManquantes, date_fr, essai_entrainement, etat_api, etat_services,
+    liens_outils, load_etat_mlops, load_serie, load_stats, load_test, predire,
+    reglages_api,
 )
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -342,6 +343,7 @@ with st.sidebar:
         "Données & Prétraitement",
         "Modèle & Entraînement",
         "Architecture MLOps",
+        "Supervision",
         "Résultats & Analyse",
         "Interprétabilité du Modèle",
         "Simulateur Interactif",
@@ -365,6 +367,7 @@ with st.sidebar:
         ("Données & Prétraitement", "Données & diagnostic"),
         ("Modèle & Entraînement", "Apprentissage"),
         ("Architecture MLOps", "Industrialisation"),
+        ("Supervision", "Production en direct"),
         ("Résultats & Analyse", "Performance"),
         ("Interprétabilité du Modèle", "Explicabilité"),
         ("Simulateur Interactif", "Simulation live"),
@@ -893,6 +896,91 @@ elif page == "Architecture MLOps":
                          "oui" if mon["retrain_recommended"] else "non"),
                     ])
 
+# ---------- SUPERVISION ----------
+elif page == "Supervision":
+    titre("fa-satellite-dish", "Supervision de la chaîne en direct")
+
+    try:
+        SUP = etat_services()
+        ETAT = load_etat_mlops()
+    except DonneesManquantes as exc:
+        st.error(str(exc))
+        st.stop()
+
+    sante = etat_api() or {}
+    liens = liens_outils()
+    services = SUP["services"]
+    alertes = [a for a in SUP["alertes"] if a["etat"] == "firing"]
+    mon = ETAT["monitoring"] or {}
+    promo = ETAT["promotion"] or {}
+
+    with card(wow_mode):
+        a, b, c, d = st.columns(4)
+        metric_fr(a, "Version en production", f"v{sante.get('model_version', '?')}")
+        metric_fr(b, "Services en ligne",
+                  f"{1 + sum(s['ok'] for s in services)} / {1 + len(services)}")
+        metric_fr(c, "Variables en dérive",
+                  f"{mon.get('drifted_features_count', '–')} / {len(S['features'])}")
+        metric_fr(d, "Alertes actives", len(alertes))
+
+    st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+
+    with card(wow_mode):
+        titre("fa-server", "Les services de la pile", "h3")
+
+        def carte_service(col, nom, role, ok, latence, lien):
+            couleur = VERT if ok else ROUGE
+            if not ok:
+                etat = "hors ligne"
+            elif latence is None:
+                etat = "en ligne"
+            else:
+                etat = f"en ligne · {latence} ms"
+            ouvrir = (f'<br><a href="{lien}" target="_blank" '
+                      f'style="color:{CYAN}">Ouvrir ↗</a>' if lien else "")
+            finding(col, "fa-circle", couleur, nom,
+                    f"{role}<br><b style='color:{couleur}'>{etat}</b>{ouvrir}")
+
+        cartes = [("API FastAPI", "Prévisions et données de l'application",
+                   bool(sante), None, liens["api"])]
+        cartes += [(s["nom"], s["role"], s["ok"], s["latence_ms"], liens.get(s["cle"]))
+                   for s in services]
+        for debut in range(0, len(cartes), 4):
+            colonnes = st.columns(4, gap="medium")
+            for col, (nom, role, ok, latence, lien) in zip(colonnes,
+                                                          cartes[debut:debut + 4]):
+                carte_service(col, nom, role, ok, latence, lien)
+            st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+
+    with card(wow_mode):
+        g, d = st.columns([1, 1], gap="large")
+        with g:
+            titre("fa-bell", "Alertes actives", "h3")
+            if alertes:
+                kv([(f"<code>{al['nom']}</code>", f"{al['gravite']} · {al['resume']}")
+                    for al in alertes])
+            else:
+                note("Aucune alerte déclenchée dans Prometheus.")
+            note("Les alertes sont regroupées par Alertmanager ; aucun canal de "
+                 "notification n'est encore branché.", "amber")
+        with d:
+            titre("fa-clock-rotate-left", "Dernières décisions de la chaîne", "h3")
+            kv([
+                ("Modèle servi", sante.get("model_source", "API injoignable")),
+                ("Dernière promotion", promo.get("reason", "–")),
+                ("Dernier contrôle de dérive",
+                 mon.get("timestamp", "–")[:16].replace("T", " à ")),
+                ("Réentraînement recommandé",
+                 "oui" if mon.get("retrain_recommended") else "non"),
+            ])
+
+    st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
+    note("Cette page interroge l'API (<code>GET /mlops/services</code> et "
+         "<code>/mlops/status</code>) : c'est elle qui contacte chaque service sur le "
+         "réseau Docker. L'application, elle, ne parle qu'à l'API.")
+
 # ---------- RÉSULTATS & ANALYSE ----------
 elif page == "Résultats & Analyse":
     titre("fa-chart-line", "Performance et analyse de l'erreur")
@@ -1284,7 +1372,7 @@ elif page == "Conclusion":
             with g:
                 titre("fa-vial-circle-check", "Ce qui est vérifié", "h3")
                 a, b = st.columns(2)
-                metric_fr(a, "Tests pytest réussis", "25 / 25")
+                metric_fr(a, "Tests pytest réussis", "28 / 28")
                 metric_fr(b, "Échecs", 0)
                 st.markdown("<div style='height:.7rem'></div>", unsafe_allow_html=True)
                 kv([
@@ -1294,11 +1382,12 @@ elif page == "Conclusion":
                      "200 · prévision"),
                     ("<code>/metrics</code> · <code>/model/reload</code>", "200"),
                     ("Données d'exploration, simulation, essais", "8 tests"),
+                    ("Supervision des services", "3 tests"),
                     ("Service d'entraînement", "6 tests"),
                     ("Construction des variables", "décalages, cible, lignes incomplètes"),
                 ])
                 note("Les tests de l'API s'exécutent contre l'application réelle via le "
-                     "<code>TestClient</code> de FastAPI. Deux des 25 tests, sur les règles de "
+                     "<code>TestClient</code> de FastAPI. Deux des 28 tests, sur les règles de "
                      "dérive et de performance, s'exécutent dans le service "
                      "d'entraînement, où Evidently est installé. GitHub Actions "
                      "relance l'ensemble à chaque push.")
@@ -1316,7 +1405,7 @@ elif page == "Conclusion":
                 titre("fa-code-compare", "Intégration continue", "h3")
                 st.markdown(
                     """
-                    - À chaque push, GitHub Actions lance les 25 tests
+                    - À chaque push, GitHub Actions lance les 28 tests
                     - À chaque push sur `main`, les quatre images sont reconstruites
                       et publiées dans le registre de conteneurs GitHub
                     """

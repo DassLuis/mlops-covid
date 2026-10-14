@@ -33,6 +33,14 @@ services:
     environment:
       - API_URL=http://api:8000
       - API_KEY=${API_KEY:?Renseigner API_KEY dans le fichier .env}
+      # Liens de la page Supervision, tels que le navigateur les voit
+      - LIEN_API=http://localhost:${API_PORT:-8000}/docs
+      - LIEN_MLFLOW=http://localhost:${MLFLOW_PORT:-5000}
+      - LIEN_AIRFLOW=http://localhost:${AIRFLOW_PORT:-8080}
+      - LIEN_MINIO=http://localhost:${MINIO_CONSOLE_PORT:-9001}
+      - LIEN_PROMETHEUS=http://localhost:${PROMETHEUS_PORT:-9090}
+      - LIEN_ALERTMANAGER=http://localhost:${ALERTMANAGER_PORT:-9093}
+      - LIEN_GRAFANA=http://localhost:${GRAFANA_PORT:-3000}
     depends_on:
       - api
 

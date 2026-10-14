@@ -91,6 +91,27 @@ def load_etat_mlops() -> dict:
     return _api("GET", "/mlops/status")
 
 
+@st.cache_data(show_spinner=False, ttl=15)
+def etat_services() -> dict:
+    """État de chaque service de la pile et alertes actives, vus par l'API."""
+    return _api("GET", "/mlops/services", delai=20)
+
+
+def liens_outils() -> dict:
+    """Adresses des outils, telles que le navigateur de l'utilisateur les voit."""
+    reglages_api()  # charge le fichier .env quand l'application tourne hors Docker
+    defauts = {
+        "api": "http://localhost:8000/docs",
+        "mlflow": "http://localhost:5000",
+        "airflow": "http://localhost:8080",
+        "minio": "http://localhost:9001",
+        "prometheus": "http://localhost:9090",
+        "alertmanager": "http://localhost:9093",
+        "grafana": "http://localhost:3000",
+    }
+    return {cle: os.getenv(f"LIEN_{cle.upper()}", url) for cle, url in defauts.items()}
+
+
 @st.cache_data(show_spinner=False, ttl=30)
 def etat_api():
     """Carte d'identité du modèle servi, ou None si l'API ne répond pas."""

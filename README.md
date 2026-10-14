@@ -230,6 +230,7 @@ Le champ `date` est facultatif : il indique le jour auquel correspondent les don
 | `GET /data/stats`, `/data/series`, `/data/test` | chiffres clés, série des cas, jeu de test avec les prévisions |
 | `POST /lab/train` | essai d'entraînement avec d'autres réglages, sans effet sur le modèle servi |
 | `GET /mlops/status` | derniers résultats d'entraînement, de promotion et de monitoring |
+| `GET /mlops/services` | état de chaque service de la pile et alertes actives (page Supervision) |
 
 Tous les endpoints sont protégés par la clé, sauf `/health`, `/metrics` et `/docs`.
 
@@ -413,6 +414,7 @@ Les tests vérifient notamment :
 - rechargement du modèle
 - construction des features (décalages, cible, lignes incomplètes)
 - données d'exploration, simulation non journalisée, essai d'entraînement
+- supervision : clé exigée, état de chaque service, service injoignable signalé
 - service d'entraînement : clé exigée, étape inconnue refusée, échec remonté à Airflow
 - règles de dérive et de performance (dans le service d'entraînement, où Evidently est installé)
 
@@ -500,7 +502,8 @@ soutenance.
 
 ## Application Streamlit
 
-Interface en 8 sections, thème sombre, avec un simulateur en direct. Elle ne lit aucun
+Interface en 9 sections, thème sombre, avec un simulateur en direct et une page de
+supervision de la pile. Elle ne lit aucun
 fichier : les chiffres, les graphiques et le simulateur passent tous par l'API.
 
 Elle démarre avec le reste de la pile (`docker compose up -d`) et s'ouvre sur
@@ -514,7 +517,8 @@ streamlit run presentation/app.py
 Elle lit alors l'adresse de l'API (`API_URL`) et la clé (`API_KEY`) dans le fichier `.env`
 
 Navigation par la barre latérale : Introduction, Données & Prétraitement,
-Modèle & Entraînement, Architecture MLOps, Résultats & Analyse, Interprétabilité,
+Modèle & Entraînement, Architecture MLOps, Supervision, Résultats & Analyse,
+Interprétabilité,
 Simulateur Interactif, Conclusion. Un stepper suit l'avancement, et
 l'interrupteur **Effets visuels** coupe les animations si la machine de
 projection peine.

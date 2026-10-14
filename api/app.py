@@ -17,6 +17,7 @@ from api.metrics import (
     set_model_metrics,
 )
 from api.prediction_log import log_prediction
+from api.supervision import etat_services
 from api.exploration import (
     DataUnavailable,
     get_exploration,
@@ -197,6 +198,12 @@ def lab_train(trial: TrialInput):
 def mlops():
     """Derniers résultats du pipeline : entraînement, promotion, monitoring."""
     return mlops_status()
+
+
+@app.get("/mlops/services", dependencies=[Depends(verify_api_key)])
+def mlops_services():
+    """État de chaque service de la pile et alertes actives."""
+    return etat_services()
 
 
 @app.post("/model/reload", dependencies=[Depends(verify_api_key)])
